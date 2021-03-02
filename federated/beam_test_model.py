@@ -6,7 +6,6 @@ from models import Lidar2D
 
 import argparse
 
-
 parser = argparse.ArgumentParser()
 
 parser.add_argument("--lidar_test_data", nargs='+', type=str, help="LIDAR test data file, if you want to merge multiple"
@@ -22,7 +21,6 @@ parser.add_argument("--preds_csv_path", type=str, default="unnamed_preds.csv",
 
 args = parser.parse_args()
 
-
 if __name__ == '__main__':
     test_data = LidarDataset2D(args.lidar_test_data, args.beam_test_data)
 
@@ -32,9 +30,9 @@ if __name__ == '__main__':
     model.load_weights(args.model_path)
 
     # metrics
-    top1 = tf.keras.metrics.TopKCategoricalAccuracy(k=1, name='top_1_categorical_accuracy', dtype=None)
-    top5 = tf.keras.metrics.TopKCategoricalAccuracy(k=5, name='top_5_categorical_accuracy', dtype=None)
-    top10 = tf.keras.metrics.TopKCategoricalAccuracy(k=10, name='top_10_categorical_accuracy', dtype=None)
+    top1 = tf.keras.metrics.TopKCategoricalAccuracy(k=1, name='top_1_categorical_accuracy')
+    top5 = tf.keras.metrics.TopKCategoricalAccuracy(name='top_5_categorical_accuracy')
+    top10 = tf.keras.metrics.TopKCategoricalAccuracy(k=10, name='top_10_categorical_accuracy')
 
     model.compile(metrics=[top1, top5, top10])
     model.evaluate(test_data.lidar_data, test_data.beam_output)

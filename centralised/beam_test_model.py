@@ -33,7 +33,7 @@ def evaluate(net, test_dataloader):
         net.eval()
         preds_all = torch.empty((len(test_dataloader), 256))
         top_1 = TopKCategoricalAccuracy(k=1)
-        top_5 = TopKCategoricalAccuracy(k=5)
+        top_5 = TopKCategoricalAccuracy()
         top_10 = TopKCategoricalAccuracy(k=10)
         for i, data in enumerate(test_dataloader):
             lidar, beams = data
@@ -54,7 +54,7 @@ def evaluate(net, test_dataloader):
 if __name__ == '__main__':
 
     test_dataset = LidarDataset2D(args.lidar_test_data, args.beam_test_data)
-    test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=False)
+    test_dataloader = DataLoader(test_dataset)
 
     model = Lidar2D()
     model.load_state_dict(torch.load(args.model_path))

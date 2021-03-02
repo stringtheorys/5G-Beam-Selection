@@ -11,12 +11,11 @@ import argparse
 
 
 def evaluate(net, test_dataloader):
-
     with torch.no_grad():
         net.eval()
         preds_all = torch.empty((len(test_dataloader), 256))
         top_1 = TopKCategoricalAccuracy(k=1)
-        top_5 = TopKCategoricalAccuracy(k=5)
+        top_5 = TopKCategoricalAccuracy()
         top_10 = TopKCategoricalAccuracy(k=10)
         for i, data in enumerate(test_dataloader):
             lidar, beams = data
@@ -36,22 +35,25 @@ def evaluate(net, test_dataloader):
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument("--lidar_training_data", nargs='+', type=str, help="LIDAR training data file, if you want to merge multiple"
-                                                                       " datasets, simply provide a list of paths, as follows:"
-                                                                       " --lidar_training_data path_a.npz path_b.npz")
-parser.add_argument("--beam_training_data", nargs='+', type=str, help="Beam training data file, if you want to merge multiple"
-                                                                      " datasets, simply provide a list of paths, as follows:"
-                                                                      " --beam_training_data path_a.npz path_b.npz")
-parser.add_argument("--lidar_validation_data", nargs='+', type=str, help="LIDAR validation data file, if you want to merge multiple"
-                                                                         " datasets, simply provide a list of paths, as follows:"
-                                                                         " --lidar_test_data path_a.npz path_b.npz")
-parser.add_argument("--beam_validation_data", nargs='+', type=str, help="Beam validation data file, if you want to merge multiple"
-                                                                        " datasets, simply provide a list of paths, as follows:"
-                                                                        " --beam_test_data path_a.npz path_b.npz")
+parser.add_argument("--lidar_training_data", nargs='+', type=str,
+                    help="LIDAR training data file, if you want to merge multiple"
+                         " datasets, simply provide a list of paths, as follows:"
+                         " --lidar_training_data path_a.npz path_b.npz")
+parser.add_argument("--beam_training_data", nargs='+', type=str,
+                    help="Beam training data file, if you want to merge multiple"
+                         " datasets, simply provide a list of paths, as follows:"
+                         " --beam_training_data path_a.npz path_b.npz")
+parser.add_argument("--lidar_validation_data", nargs='+', type=str,
+                    help="LIDAR validation data file, if you want to merge multiple"
+                         " datasets, simply provide a list of paths, as follows:"
+                         " --lidar_test_data path_a.npz path_b.npz")
+parser.add_argument("--beam_validation_data", nargs='+', type=str,
+                    help="Beam validation data file, if you want to merge multiple"
+                         " datasets, simply provide a list of paths, as follows:"
+                         " --beam_test_data path_a.npz path_b.npz")
 parser.add_argument("--model_path", type=str, default='test_model', help="Path, where the trained model will be saved")
 
 args = parser.parse_args()
-
 
 if __name__ == '__main__':
 
@@ -63,17 +65,18 @@ if __name__ == '__main__':
         args.beam_validation_data = args.beam_training_data
 
     validation_dataset = LidarDataset2D(args.lidar_validation_data, args.beam_validation_data)
-    validation_dataloader = DataLoader(validation_dataset, batch_size=1, shuffle=False)
+    validation_dataloader = DataLoader(validation_dataset)
 
     model = Lidar2D().cuda()
     optimizer = optim.Adam(model.parameters())
-    scheduler = optim.lr_scheduler.StepLR(optimizer, 10, 0.1)
-    criterion = lambda y_pred, y_true: -torch.sum(torch.mean(y_true[y_pred>0] * torch.log(y_pred[y_pred>0]), axis=0))
+    scheduler = optim.lr_scheduler.StepLR(optimizer, 10)
+    criterion = lambda y_pred, y_true: -torch.sum(
+        torch.mean(y_true[y_pred > 0] * torch.log(y_pred[y_pred > 0]), axis=0))
 
     best_acc = 0.0
     for i in range(20):
         accumulated_loss = []
-        for i, data in enumerate(train_dataloader):
+        for j, data in enumerate(train_dataloader):
             optimizer.zero_grad()
             lidar, beams = data
             lidar = lidar.cuda()
@@ -88,4 +91,3 @@ if __name__ == '__main__':
         evaluate(model, validation_dataloader)
 
     torch.save(model.state_dict(), args.model_path)
-

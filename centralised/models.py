@@ -27,7 +27,6 @@ class Lidar2D(nn.Module):
         self.relu7 = nn.ReLU()
         self.linear8 = nn.Linear(16, 256)
 
-
     def forward(self, x):
         if len(x.shape) < 4:
             x = x.unsqueeze(1)

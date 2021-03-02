@@ -30,9 +30,7 @@ Lidar2D = models.Sequential([
 
 LidarMarcus = models.Sequential([
     layers.Input(shape=(20, 200, 10)),
-    layers.Conv2D(10, kernel_size=(13, 13),
-                   activation='relu',
-                   padding="same"),
+    layers.Conv2D(10, kernel_size=(13, 13), activation='relu', padding="same"),
     layers.Conv2D(30, (11, 11), padding="SAME", activation='relu'),
     layers.Conv2D(25, (9, 9), padding="SAME", activation='relu'),
     layers.MaxPooling2D(pool_size=(2, 1)),
@@ -46,7 +44,6 @@ LidarMarcus = models.Sequential([
     layers.Flatten(),
     layers.Dense(256, activation='softmax')
 ])
-
 
 if __name__ == '__main__':
     model = Lidar2D

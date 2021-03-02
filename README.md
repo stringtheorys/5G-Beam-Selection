@@ -17,11 +17,11 @@
 ## Dataset
 In this work we use Raymobtime<sup>2</sup> dataset, which is a collection of realistic ray-tracing data obtained by simulating traffic in environment highly inspired by real world data. It utilizes SUMO for mobility simulations, Insite for ray-tracing, Cadmapper and Open Street Map for importing realistic outdoor scenarios. The dataset is divided into smaller sets, with different frequencies considered, various number of receivers, and environments. For our Challenge submission, we trained on the s008 dataset (we combined both training and validation subsets) and validated on s009. 
 
-![](img/data_preprocessing.gif)
+![](imgs/data_preprocessing.gif)
 
 ## Model
 
-![](img/2dmodel.png)
+![](imgs/2dmodel.png)
 
 Our NN architecture consists of 6 convolutional layers followed by
 a 2 layer linear classifier as depicted in the Figure above. In the convolutional
@@ -37,7 +37,7 @@ to many distributed learning scenarios.
 
 ## Federated learning
 
-![](img/FEDBeam.jpg)
+![](imgs/FEDBeam.jpg)
 
 We also consider training our model in the federated learning paradigm, where connected vehicles collaborate to train
 to train the network. We consider each vehicle gathers it's own dataset of LIDAR measurements and corresponding
@@ -55,7 +55,7 @@ we only transmit lightweight neural network gradients.
 Our model achieves superior performance compared to the baseline<sup>4</sup>, when trained offline, while also achieving
 55x reduction in the number of parameters and 100x reduction in the number of FLOPs required to run the forward pass.
 
-![](img/Acc_Thr.png)
+![](imgs/Acc_Thr.png)
 
 In the federated scenario, our model is able to achieve a satisfactory performance even for a reasonable
 number of participating vehicles, denoted as V. The loss in the accuracy is caused by the fact that the local datasets
