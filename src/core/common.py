@@ -1,6 +1,7 @@
 
 import numpy as np
 
+
 def lidar_to_2d(lidar_data_path):
     lidar_data = np.load(lidar_data_path)['input']
     lidar_zeros = np.zeros_like(lidar_data)[:, :, :, 1]

@@ -8,8 +8,11 @@
 module load conda
 # conda create -n 5GBeamAlignment python=3.7
 # pip install tensorflow-federated
-conda activate 5GBeamAlignment
+source activate 5GBeamAlignment
 
-cd 5G-Beam-Alignment
-python centralised_agent.py
-python federated_agent.py
+echo $PWD
+cd ~/5G-Beam-Selection/src/
+PYTHONPATH=~/5G-Beam-Selection/src/
+
+python -m agents.centralised.py
+python -m agents.federated.py

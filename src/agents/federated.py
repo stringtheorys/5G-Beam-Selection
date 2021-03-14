@@ -9,7 +9,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_federated as tff
 
-from common import lidar_to_2d, get_beam_output, model_top_metric_eval
+from core.common import lidar_to_2d, get_beam_output, model_top_metric_eval
 
 
 def get_vehicle_dataset(total_vehicles, vehicle):
@@ -104,6 +104,7 @@ for round_num in range(aggregation_rounds):
     # Save metrics
     metrics['training-top-1'].append(training_metrics['top-1'])
     metrics['training-top-10'].append(training_metrics['top-10'])
+    metrics['loss'].append(training_metrics['loss'])
     metrics['testing-top-1'].append(testing_metrics['top-1'])
     metrics['testing-top-10'].append(testing_metrics['top-10'])
 
@@ -116,4 +117,4 @@ for round_num in range(aggregation_rounds):
 # Save the agent results
 with open('federated-agent-metrics.json') as file:
     json.dump(metrics, file)
-federated_state.model.save_weights('federated-model')
+federated_state.model.save('models/federated-model')
