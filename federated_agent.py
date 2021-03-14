@@ -3,6 +3,7 @@ Testing file for training of federated learning beam alignment agent
 """
 
 import collections
+import json
 
 import numpy as np
 import tensorflow as tf
@@ -110,4 +111,9 @@ for round_num in range(aggregation_rounds):
     correct, top_k, throughput_ratio = model_top_metric_eval(federated_state.model, custom_val_lidar, custom_val_beam)
     metrics['correct'].append(correct)
     metrics['top-k'].append(top_k)
-    metrics['throughput_ratio'].append(throughput_ratio)
+    metrics['throughput-ratio-k'].append(throughput_ratio)
+
+# Save the agent results
+with open('federated-agent-metrics.json') as file:
+    json.dump(metrics, file)
+federated_state.model.save_weights('federated-model')

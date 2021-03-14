@@ -66,7 +66,5 @@ model.evaluate(validation_lidar_data, validation_beam_output)
 # Custom evaluation
 correct, top_k, throughput_ratio_k = model_top_metric_eval(model, validation_lidar_data, validation_beam_output)
 with open('centralised_agent_eval.json', 'w') as file:
-    json.dumps([correct, top_k, throughput_ratio_k])
-
-# Save the model
-model.save_weights('centralised_model')
+    json.dumps({'correct': correct, 'top-k': top_k, 'throughput-ratio-k': throughput_ratio_k})
+model.save_weights('centralised-model')
