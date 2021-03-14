@@ -8,7 +8,7 @@ import json
 import numpy as np
 import tensorflow as tf
 
-from common import lidar_to_2d, get_beam_output, get_beam_output_no_normalization
+from common import lidar_to_2d, get_beam_output, model_top_metric_eval
 
 # Model
 model = tf.keras.models.Sequential([
@@ -43,8 +43,8 @@ model = tf.keras.models.Sequential([
 loss = tf.keras.losses.CategoricalCrossentropy()
 optimiser = tf.keras.optimizers.Adam()
 
-top1 = tf.keras.metrics.TopKCategoricalAccuracy(k=1, name='top 1')
-top10 = tf.keras.metrics.TopKCategoricalAccuracy(k=10, name='top 10')
+top1 = tf.keras.metrics.TopKCategoricalAccuracy(k=1, name='top-1')
+top10 = tf.keras.metrics.TopKCategoricalAccuracy(k=10, name='top-10')
 
 # Tensorboard for logging of training info
 log_directory = f'logs/{dt.datetime.now().strftime("%Y%m%d-%H%M%S")}'
@@ -64,16 +64,9 @@ validation_beam_output, _ = get_beam_output('data/beams_output_validation.npz')
 model.evaluate(validation_lidar_data, validation_beam_output)
 
 # Custom evaluation
-beam_output_true, _ = get_beam_output_no_normalization('data/beams_output_validation.npz')
-predictions = np.argsort(model.predict(validation_lidar_data, batch_size=100), axis=1)
-top_k, throughput_ratio_k, correct = np.zeros(100), np.zeros(100), 0
-for pos in range(100):
-    correct += np.sum(predictions[:, -1-pos] == np.argmax(validation_beam_output, axis=1))
-    top_k[pos] = correct / validation_beam_output.shape[0]
-    throughput_ratio_k[pos] = np.sum(np.log2(np.max(np.take_along_axis(beam_output_true, predictions, axis=1)[:, -1-pos:], axis=1) + 1)) / np.sum(np.log2(np.max(beam_output_true, axis=1) + 1))
-
+correct, top_k, throughput_ratio_k = model_top_metric_eval(model, validation_lidar_data, validation_beam_output)
 with open('centralised_agent_eval.json', 'w') as file:
-    json.dumps([top_k, throughput_ratio_k])
+    json.dumps([correct, top_k, throughput_ratio_k])
 
 # Save the model
 model.save_weights('centralised_model')

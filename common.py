@@ -59,3 +59,14 @@ def get_beam_output_no_normalization(output_file):
                 y[i, tx * rx_size + rx] = codebook[rx, tx]  # impose ordering
 
     return y, num_classes
+
+
+def model_top_metric_eval(model, validation_lidar_data, validation_beam_output):
+    beam_output_true, _ = get_beam_output_no_normalization('data/beams_output_validation.npz')
+    predictions = np.argsort(model.predict(validation_lidar_data, batch_size=100), axis=1)
+    top_k, throughput_ratio_k, correct = np.zeros(100), np.zeros(100), 0
+    for pos in range(100):
+        correct += np.sum(predictions[:, -1-pos] == np.argmax(validation_beam_output, axis=1))
+        top_k[pos] = correct / validation_beam_output.shape[0]
+        throughput_ratio_k[pos] = np.sum(np.log2(np.max(np.take_along_axis(beam_output_true, predictions, axis=1)[:, -1-pos:], axis=1) + 1)) / np.sum(np.log2(np.max(beam_output_true, axis=1) + 1))
+    return correct, top_k, throughput_ratio_k
