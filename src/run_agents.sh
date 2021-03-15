@@ -10,6 +10,8 @@ module load conda
 # pip install tensorflow-federated
 source activate 5GBeamAlignment
 
+module load cuda/11.0
+
 echo $PWD
 cd ~/5G-Beam-Selection/src/
 PYTHONPATH=~/5G-Beam-Selection/src/
