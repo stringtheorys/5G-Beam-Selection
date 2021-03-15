@@ -1,0 +1,2 @@
+model_checkpoint_path: "centralised-model"
+all_model_checkpoint_paths: "centralised-model"
