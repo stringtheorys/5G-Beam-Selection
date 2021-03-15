@@ -47,22 +47,26 @@ top1 = tf.keras.metrics.TopKCategoricalAccuracy(k=1, name='top-1')
 top10 = tf.keras.metrics.TopKCategoricalAccuracy(k=10, name='top-10')
 
 # Tensorboard for logging of training info
-log_directory = f'logs/centralised-{dt.datetime.now().strftime("%Y%m%d-%H%M%S")}'
-tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_directory)
+# log_directory = f'../logs/centralised-{dt.datetime.now().strftime("%Y%m%d-%H%M%S")}'
+# tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_directory)
 
 # Compile the model
 model.compile(optimizer=optimiser, loss=loss, metrics=[top1, top10])
 
-# Train the model
-training_lidar_data = np.transpose(np.expand_dims(lidar_to_2d('data/lidar_train.npz'), 1), (0, 2, 3, 1))
-training_beam_output, _ = get_beam_output('data/beams_output_train.npz')
-validation_lidar_data = np.transpose(np.expand_dims(lidar_to_2d('data/lidar_validation.npz'), 1), (0, 2, 3, 1))
-validation_beam_output, _ = get_beam_output('data/beams_output_validation.npz')
-history = model.fit(x=training_lidar_data, y=training_beam_output, callbacks=tensorboard_callback, batch_size=16,
-                    validation_data=(validation_lidar_data, validation_beam_output))
+# Load the training and testing datasets
+training_lidar_data = np.transpose(np.expand_dims(lidar_to_2d('../data/lidar_train.npz'), 1), (0, 2, 3, 1))
+training_beam_output, _ = get_beam_output('../data/beams_output_train.npz')
+validation_lidar_data = np.transpose(np.expand_dims(lidar_to_2d('../data/lidar_validation.npz'), 1), (0, 2, 3, 1))
+validation_beam_output, _ = get_beam_output('../data/beams_output_validation.npz')
+
+# Train the model, change the epochs value for the number of training rounds
+history = model.fit(x=training_lidar_data, y=training_beam_output, batch_size=16,  # callbacks=tensorboard_callback,
+                    validation_data=(validation_lidar_data, validation_beam_output), epochs=10)
+model.save_weights('../models/centralised-model')
 
 # Custom evaluation
 correct, top_k, throughput_ratio_k = model_top_metric_eval(model, validation_lidar_data, validation_beam_output)
-with open('centralised_agent_eval.json', 'w') as file:
-    json.dumps({'correct': correct, 'top-k': top_k, 'throughput-ratio-k': throughput_ratio_k, 'history': history})
-model.save('models/centralised-model')
+print(correct, top_k, throughput_ratio_k)
+with open('../centralised_agent_eval.json', 'w') as file:
+    json.dump({'correct': int(correct), 'top-k': top_k, 'throughput-ratio-k': throughput_ratio_k,
+               'history': {key: [int(val) for val in vals] for key, vals in history.history.items()}}, file)
