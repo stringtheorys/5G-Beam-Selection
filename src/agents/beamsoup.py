@@ -4,9 +4,9 @@ import json
 import numpy as np
 import tensorflow as tf
 
-# Lidar model
 from core.common import get_beam_output, lidar_to_2d, model_top_metric_eval
 
+# Lidar model
 lidar_layer = tf.keras.layers.Input()
 lidar_layer = tf.math.divide(tf.add(tf.cast(lidar_layer, dtype=tf.float32), 2), 3)  # Scaling to [0,1] interval
 lidar_layer = tf.keras.layers.GaussianNoise(0.005)(lidar_layer)  # 0.002
