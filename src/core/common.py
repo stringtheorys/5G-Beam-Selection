@@ -1,6 +1,8 @@
 
 import numpy as np
 
+from core.models import imperial_model, beamsoup_lidar_model, beamsoup_coord_model, beamsoup_lidar_coord_model
+
 
 def lidar_to_2d(lidar_data_path):
     lidar_data = np.load(lidar_data_path)['input']
@@ -72,3 +74,33 @@ def model_top_metric_eval(model, validation_lidar_data, validation_beam_output):
         throughput_ratio_k.append(np.sum(np.log2(np.max(np.take_along_axis(
             validation_beam_output, predictions, axis=1)[:, -1-pos:], axis=1) + 1)) / best_throughput)
     return correct, top_k, throughput_ratio_k
+
+
+def parse_args(parser):
+    # Load the training and validation datasets
+    training_lidar_data = np.transpose(np.expand_dims(lidar_to_2d('../data/lidar_train.npz'), 1), (0, 2, 3, 1))
+    training_coord_data = None
+    training_beam_output, _ = get_beam_output('../data/beams_output_train.npz')
+
+    val_lidar_data = np.transpose(np.expand_dims(lidar_to_2d('../data/lidar_validation.npz'), 1), (0, 2, 3, 1))
+    val_coord_data = None
+    validation_beam_output, _ = get_beam_output('../data/beams_output_validation.npz')
+
+    # Parser the arguments
+    args = parser.parse_args()
+    if args.model == 'imperial':
+        model = imperial_model
+        train_input, val_input = training_lidar_data, val_lidar_data
+    elif args.model == 'bs-lidar':
+        model = beamsoup_lidar_model
+        train_input, val_input = training_lidar_data, val_lidar_data
+    elif args.model == 'bs-coord':
+        model = beamsoup_coord_model
+        train_input, val_input = training_coord_data, val_coord_data
+    elif args.model == 'beamsoup':
+        model = beamsoup_lidar_coord_model
+        train_input, val_input = [training_lidar_data, training_coord_data], [val_lidar_data, val_coord_data]
+    else:
+        raise BaseException(f'Error, unknown model: {args.model}')
+
+    return args, model, train_input, training_beam_output, val_input, validation_beam_output
