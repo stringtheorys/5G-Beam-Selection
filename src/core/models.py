@@ -32,7 +32,7 @@ imperial_model = tf.keras.models.Sequential([
 
 
 def beamsoup_lidar_layers():
-    _lidar_input = tf.keras.layers.Input()
+    _lidar_input = tf.keras.layers.Input(shape=(20, 200, 10))
     _lidar_layer = tf.math.divide(tf.add(tf.cast(_lidar_input, dtype=tf.float32), 2), 3)  # Scaling to [0,1] interval
     _lidar_layer = tf.keras.layers.GaussianNoise(0.005)(_lidar_layer)  # 0.002
     _lidar_layer = tf.keras.layers.Conv2D(32, kernel_size=(5, 5), activation='relu', padding='same')(_lidar_layer)
@@ -51,7 +51,7 @@ def beamsoup_lidar_layers():
 
 def beamsoup_coord_layers():
     # Coord model
-    coord_input = tf.keras.layers.Input()
+    coord_input = tf.keras.layers.Input(shape=(2, 1))
     coord_layer = tf.keras.layers.Dense(128, activation='relu')(coord_input)
     coord_layer = tf.keras.layers.GaussianNoise(0.002)(coord_layer)
     return coord_input, coord_layer
