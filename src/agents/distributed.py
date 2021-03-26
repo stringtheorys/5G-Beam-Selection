@@ -23,10 +23,6 @@ def distributed_training(name, model, training_input, training_output, validatio
     top1 = tf.keras.metrics.TopKCategoricalAccuracy(k=1, name='top-1')
     top10 = tf.keras.metrics.TopKCategoricalAccuracy(k=10, name='top-10')
 
-    # Tensorboard for logging of training info
-    # log_directory = f'../logs/centralised-{dt.datetime.now().strftime("%Y%m%d-%H%M%S")}'
-    # tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_directory)
-
     history = []
     for step in range(training_steps):
         sample_indexes = np.random.uniform(0, len(training_input), batch_size)
