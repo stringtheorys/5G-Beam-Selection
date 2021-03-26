@@ -11,7 +11,8 @@ import tensorflow as tf
 from core.common import model_top_metric_eval, parse_args, TopKThroughputRatio
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-m', '--model', default='imperial', choices=['imperial', 'bs-lidar', 'bs-coord', 'beamsoup'])
+parser.add_argument('-m', '--model', default='imperial', choices=['imperial', 'beamsoup-lidar',
+                                                                  'beamsoup-coord', 'beamsoup'])
 
 
 def centralised_training(name, model, training_input, training_output, validation_input, validation_output, epochs=15):
@@ -26,7 +27,7 @@ def centralised_training(name, model, training_input, training_output, validatio
     top_10_throughput = TopKThroughputRatio(k=10, name='top-10-throughput')
 
     # Adds callbacks over the epochs (through this is saved in the eval.json file)
-    log_dir = f'../logs/{name}/{datetime.datetime.now().strftime("%Y%m%d-%H%M%S")}'
+    log_dir = f'../results/logs/{name}/{datetime.datetime.now().strftime("%Y%m%d-%H%M%S")}'
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
 
     # Compile the model with the optimiser, loss and metrics
@@ -35,7 +36,7 @@ def centralised_training(name, model, training_input, training_output, validatio
     # Train the model, change the epochs value for the number of training rounds
     history = model.fit(x=training_input, y=training_output, batch_size=16,  callbacks=tensorboard_callback,
                         validation_data=(validation_input, validation_output), epochs=epochs)
-    model.save_weights(f'../models/centralised-{name}/model')
+    model.save_weights(f'../results/models/centralised-{name}/model')
 
     # Custom evaluation of the trained model
     correct, top_k, throughput_ratio_k = model_top_metric_eval(model, validation_input, validation_output)

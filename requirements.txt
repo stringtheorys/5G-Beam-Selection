@@ -4,3 +4,4 @@ torch
 pytorch-ignite
 numpy
 scipy
+tqdm
