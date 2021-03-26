@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --partition=lyceum
-#SBATCH --time=02:00:00
+#SBATCH --time=04:00:00
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 
@@ -16,5 +16,7 @@ echo $PWD
 cd ~/5G-Beam-Selection/src/
 PYTHONPATH=~/5G-Beam-Selection/src/
 
-python -m agents.centralised.py
-python -m agents.federated.py
+python -m agents.centralised.py --model imperial
+python -m agents.centralised.py --model beamsoup-lidar
+python -m agents.centralised.py --model beamsoup-coord
+python -m agents.centralised.py --model beamsoup

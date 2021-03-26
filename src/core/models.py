@@ -32,7 +32,7 @@ imperial_model = tf.keras.models.Sequential([
 
 
 def beamsoup_lidar_layers():
-    _lidar_input = tf.keras.layers.Input(shape=(20, 200, 10))
+    _lidar_input = tf.keras.layers.Input(shape=(20, 200, 1))
     _lidar_layer = tf.math.divide(tf.add(tf.cast(_lidar_input, dtype=tf.float32), 2), 3)  # Scaling to [0,1] interval
     _lidar_layer = tf.keras.layers.GaussianNoise(0.005)(_lidar_layer)  # 0.002
     _lidar_layer = tf.keras.layers.Conv2D(32, kernel_size=(5, 5), activation='relu', padding='same')(_lidar_layer)
@@ -51,21 +51,21 @@ def beamsoup_lidar_layers():
 
 def beamsoup_coord_layers():
     # Coord model
-    coord_input = tf.keras.layers.Input(shape=(2, 1))
-    coord_layer = tf.keras.layers.Dense(128, activation='relu')(coord_input)
-    coord_layer = tf.keras.layers.GaussianNoise(0.002)(coord_layer)
-    return coord_input, coord_layer
+    _coord_input = tf.keras.layers.Input(shape=(2,))
+    _coord_layer = tf.keras.layers.Dense(128, activation='relu')(_coord_input)
+    _coord_layer = tf.keras.layers.GaussianNoise(0.002)(_coord_layer)
+    return _coord_input, _coord_layer
 
 
 # Lidar model
 lidar_input, lidar_layer = beamsoup_lidar_layers()
 output_layer = tf.keras.layers.Dense(256, activation='softmax')(lidar_layer)
-beamsoup_lidar_model = tf.keras.models.Sequential(inputs=lidar_input, outputs=output_layer)
+beamsoup_lidar_model = tf.keras.models.Model(inputs=lidar_input, outputs=output_layer)
 
 # Coord model
 coord_input, coord_layer = beamsoup_coord_layers()
 output_layer = tf.keras.layers.Dense(256, activation='softmax')(coord_layer)
-beamsoup_coord_model = tf.keras.models.Sequential(inputs=coord_input, outputs=output_layer)
+beamsoup_coord_model = tf.keras.models.Model(inputs=coord_input, outputs=output_layer)
 
 # Combine the coord and lidar models
 lidar_input, lidar_layer = beamsoup_lidar_layers()
@@ -75,4 +75,4 @@ alignment_layer = tf.keras.layers.Dense(600, activation='relu')(alignment_layer)
 alignment_layer = tf.keras.layers.Dense(600, activation='relu')(alignment_layer)
 alignment_layer = tf.keras.layers.Dense(500, activation='relu')(alignment_layer)
 alignment_layer = tf.keras.layers.Dense(256, activation='softmax')(alignment_layer)
-beamsoup_lidar_coord_model = tf.keras.models.Sequential(inputs=[lidar_input, coord_input], outputs=alignment_layer)
+beamsoup_lidar_coord_model = tf.keras.models.Model(inputs=[lidar_input, coord_input], outputs=alignment_layer)

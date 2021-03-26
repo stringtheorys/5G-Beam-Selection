@@ -6,20 +6,30 @@ from tensorflow.python.keras.metrics import MeanMetricWrapper
 from core.models import imperial_model, beamsoup_lidar_model, beamsoup_coord_model, beamsoup_lidar_coord_model
 
 
-class TopKThroughput(MeanMetricWrapper):
+class TopKThroughputRatio(MeanMetricWrapper):
+    """
+    Top K Throughput Ratio metric
+    """
+
     def __init__(self, k, name):
         MeanMetricWrapper.__init__(self, self.throughput, name, k=k)
 
     def throughput(self, y_true, y_pred, k):
         """
         Finds the throughput ratio of the top k beams compared to the optimal beam
+            Algorithm works by
+            1. Sorting the y pred in reverse order and collecting the first k responses indices (top k responses)
+            2. Gather the value from the y true array using the indices from the top k y pred
+            3. Reduce the maximum y true value for each beam
+            4. Get the ratio between the max y true value and the max y true based on the predicted values
 
         :param y_true: True beam output
         :param y_pred: Predicted beam output
         :param k: top k beam
         :return: top k beam throughput ratio
         """
-        return tf.divide(tf.maximum(tf.gather(y_true, tf.argsort(y_pred)[:k])), tf.maximum(y_true))
+        return tf.divide(tf.reduce_max(tf.gather(y_true, tf.argsort(y_pred, direction='DESCENDING')[:, :k],
+                                                 axis=1, batch_dims=1), axis=1), tf.reduce_max(y_true, axis=1))
 
 
 def lidar_to_2d(lidar_data_path):
@@ -97,11 +107,11 @@ def model_top_metric_eval(model, validation_lidar_data, validation_beam_output):
 def parse_args(parser):
     # Load the training and validation datasets
     training_lidar_data = np.transpose(np.expand_dims(lidar_to_2d('../data/lidar_train.npz'), 1), (0, 2, 3, 1))
-    training_coord_data = None
+    training_coord_data = np.load('../data/coord_train.npz')['coordinates']
     training_beam_output, _ = get_beam_output('../data/beams_output_train.npz')
 
     val_lidar_data = np.transpose(np.expand_dims(lidar_to_2d('../data/lidar_validation.npz'), 1), (0, 2, 3, 1))
-    val_coord_data = None
+    val_coord_data = np.load('../data/coord_validation.npz')['coordinates']
     validation_beam_output, _ = get_beam_output('../data/beams_output_validation.npz')
 
     # Parser the arguments
@@ -109,10 +119,10 @@ def parse_args(parser):
     if args.model == 'imperial':
         model = imperial_model
         train_input, val_input = training_lidar_data, val_lidar_data
-    elif args.model == 'bs-lidar':
+    elif args.model == 'beamsoup-lidar':
         model = beamsoup_lidar_model
         train_input, val_input = training_lidar_data, val_lidar_data
-    elif args.model == 'bs-coord':
+    elif args.model == 'beamsoup-coord':
         model = beamsoup_coord_model
         train_input, val_input = training_coord_data, val_coord_data
     elif args.model == 'beamsoup':
