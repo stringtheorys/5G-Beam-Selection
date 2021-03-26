@@ -1,7 +1,25 @@
 
 import numpy as np
+import tensorflow as tf
+from tensorflow.python.keras.metrics import MeanMetricWrapper
 
 from core.models import imperial_model, beamsoup_lidar_model, beamsoup_coord_model, beamsoup_lidar_coord_model
+
+
+class TopKThroughput(MeanMetricWrapper):
+    def __init__(self, k, name):
+        MeanMetricWrapper.__init__(self, self.throughput, name, k=k)
+
+    def throughput(self, y_true, y_pred, k):
+        """
+        Finds the throughput ratio of the top k beams compared to the optimal beam
+
+        :param y_true: True beam output
+        :param y_pred: Predicted beam output
+        :param k: top k beam
+        :return: top k beam throughput ratio
+        """
+        return tf.divide(tf.maximum(tf.gather(y_true, tf.argsort(y_pred)[:k])), tf.maximum(y_true))
 
 
 def lidar_to_2d(lidar_data_path):
