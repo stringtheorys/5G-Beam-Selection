@@ -75,46 +75,47 @@ def model_fn():
                                          metrics=[top_1, top_10])
 
 
-# Arguments
-num_vehicles, aggregation_rounds = 2, 30
+def federated_training():
+    # Arguments
+    num_vehicles, aggregation_rounds = 2, 30
 
-# initialise the federated learning
-federated_trainer = tff.learning.build_federated_averaging_process(
-    model_fn,
-    client_optimizer_fn=lambda: tf.keras.optimizers.Adam(lr=5e-3),
-    server_optimizer_fn=lambda: tf.keras.optimizers.SGD(lr=.25))
-federated_evaluation = tff.learning.build_federated_evaluation(model_fn)
-federated_state = federated_trainer.initialize()
+    # initialise the federated learning
+    federated_trainer = tff.learning.build_federated_averaging_process(
+        model_fn,
+        client_optimizer_fn=lambda: tf.keras.optimizers.Adam(lr=5e-3),
+        server_optimizer_fn=lambda: tf.keras.optimizers.SGD(lr=.25))
+    federated_evaluation = tff.learning.build_federated_evaluation(model_fn)
+    federated_state = federated_trainer.initialize()
 
-# Generate vehicle training dataset and the testing dataset
-vehicle_training_dataset = [preprocess(get_vehicle_dataset(num_vehicles, v)) for v in range(num_vehicles)]
-validation_data = [preprocess(get_validation_dataset())]
-custom_val_lidar = np.transpose(np.expand_dims(lidar_to_2d('../data/lidar_validation.npz'), 1), (0, 2, 3, 1))
-custom_val_beam, _ = get_beam_output('../data/beams_output_validation.npz')
+    # Generate vehicle training dataset and the testing dataset
+    vehicle_training_dataset = [preprocess(get_vehicle_dataset(num_vehicles, v)) for v in range(num_vehicles)]
+    validation_data = [preprocess(get_validation_dataset())]
+    custom_val_lidar = np.transpose(np.expand_dims(lidar_to_2d('../data/lidar_validation.npz'), 1), (0, 2, 3, 1))
+    custom_val_beam, _ = get_beam_output('../data/beams_output_validation.npz')
 
-# Evaluation metrics
-metrics = {'training-top-1': [], 'training-top-10': [], 'testing-top-1': [], 'testing-top-10': [],
-           'correct': [], 'top-k': [], 'throughput_ratio': []}
+    # Evaluation metrics
+    metrics = {'training-top-1': [], 'training-top-10': [], 'testing-top-1': [], 'testing-top-10': [],
+               'correct': [], 'top-k': [], 'throughput_ratio': []}
 
-# Federated Training
-for round_num in range(aggregation_rounds):
-    federated_state, training_metrics = federated_trainer.next(federated_state, vehicle_training_dataset)
-    testing_metrics = federated_evaluation(federated_state.model, validation_data)
+    # Federated Training
+    for round_num in range(aggregation_rounds):
+        federated_state, training_metrics = federated_trainer.next(federated_state, vehicle_training_dataset)
+        testing_metrics = federated_evaluation(federated_state.model, validation_data)
 
-    # Save metrics
-    metrics['training-top-1'].append(training_metrics['top-1'])
-    metrics['training-top-10'].append(training_metrics['top-10'])
-    metrics['loss'].append(training_metrics['loss'])
-    metrics['testing-top-1'].append(testing_metrics['top-1'])
-    metrics['testing-top-10'].append(testing_metrics['top-10'])
+        # Save metrics
+        metrics['training-top-1'].append(training_metrics['top-1'])
+        metrics['training-top-10'].append(training_metrics['top-10'])
+        metrics['loss'].append(training_metrics['loss'])
+        metrics['testing-top-1'].append(testing_metrics['top-1'])
+        metrics['testing-top-10'].append(testing_metrics['top-10'])
 
-    # Custom evaluations
-    correct, top_k, throughput_ratio = model_top_metric_eval(federated_state.model, custom_val_lidar, custom_val_beam)
-    metrics['correct'].append(correct)
-    metrics['top-k'].append(top_k)
-    metrics['throughput-ratio-k'].append(throughput_ratio)
+        # Custom evaluations
+        correct, top_k, throughput_ratio = model_top_metric_eval(federated_state.model, custom_val_lidar, custom_val_beam)
+        metrics['correct'].append(correct)
+        metrics['top-k'].append(top_k)
+        metrics['throughput-ratio-k'].append(throughput_ratio)
 
-# Save the agent results
-with open('../federated-agent-metrics.json') as file:
-    json.dump(metrics, file)
-federated_state.model.save('models/federated-model')
+    # Save the agent results
+    with open('../federated-agent-metrics.json') as file:
+        json.dump(metrics, file)
+    federated_state.model.save('models/federated-model')

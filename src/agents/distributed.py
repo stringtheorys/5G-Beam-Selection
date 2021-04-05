@@ -2,18 +2,13 @@
 Testing file for training of centralised beam alignment agent
 """
 
-import argparse
 import json
 
-from tqdm import tqdm
 import numpy as np
 import tensorflow as tf
+from tqdm import tqdm
 
-from core.common import model_top_metric_eval, parse_args, TopKThroughputRatio
-
-parser = argparse.ArgumentParser()
-parser.add_argument('-m', '--model', default='imperial', choices=['imperial', 'beamsoup-lidar',
-                                                                  'beamsoup-coord', 'beamsoup'])
+from core.common import model_top_metric_eval, TopKThroughputRatio
 
 
 def distributed_training(name, model, training_input, training_output, validation_input, validation_output,
@@ -80,8 +75,3 @@ def distributed_training(name, model, training_input, training_output, validatio
         json.dump({'correct': int(correct), 'top-k': top_k, 'throughput-ratio-k': throughput_ratio_k,
                    'history': history}, file)
 
-
-if __name__ == '__main__':
-    args, distributed_model, *train_validation_data = parse_args(parser)
-
-    distributed_training(args.model, distributed_model, *train_validation_data)

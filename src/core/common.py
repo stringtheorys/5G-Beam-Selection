@@ -104,7 +104,7 @@ def model_top_metric_eval(model, validation_lidar_data, validation_beam_output):
     return correct, top_k, throughput_ratio_k
 
 
-def parse_args(parser):
+def parse_model(args):
     # Load the training and validation datasets
     training_lidar_data = np.transpose(np.expand_dims(lidar_to_2d('../data/lidar_train.npz'), 1), (0, 2, 3, 1))
     training_coord_data = np.load('../data/coord_train.npz')['coordinates']
@@ -114,8 +114,6 @@ def parse_args(parser):
     val_coord_data = np.load('../data/coord_validation.npz')['coordinates']
     validation_beam_output, _ = get_beam_output('../data/beams_output_validation.npz')
 
-    # Parser the arguments
-    args = parser.parse_args()
     if args.model == 'imperial':
         model = imperial_model
         train_input, val_input = training_lidar_data, val_lidar_data
@@ -131,4 +129,4 @@ def parse_args(parser):
     else:
         raise BaseException(f'Error, unknown model: {args.model}')
 
-    return args, model, train_input, training_beam_output, val_input, validation_beam_output
+    return args.model, model, train_input, training_beam_output, val_input, validation_beam_output

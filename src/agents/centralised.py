@@ -2,17 +2,12 @@
 Testing file for training of centralised beam alignment agent
 """
 
-import argparse
 import datetime
 import json
 
 import tensorflow as tf
 
-from core.common import model_top_metric_eval, parse_args, TopKThroughputRatio
-
-parser = argparse.ArgumentParser()
-parser.add_argument('-m', '--model', default='imperial', choices=['imperial', 'beamsoup-lidar',
-                                                                  'beamsoup-coord', 'beamsoup'])
+from core.common import model_top_metric_eval, TopKThroughputRatio
 
 
 def centralised_training(name, model, training_input, training_output, validation_input, validation_output, epochs=15):
@@ -44,9 +39,3 @@ def centralised_training(name, model, training_input, training_output, validatio
     with open(f'../results/centralised-{name}-eval.json', 'w') as file:
         json.dump({'correct': int(correct), 'top-k': top_k, 'throughput-ratio-k': throughput_ratio_k,
                    'history': {key: [int(val) for val in vals] for key, vals in history.history.items()}}, file)
-
-
-if __name__ == '__main__':
-    args, centralised_model, *train_validation_data = parse_args(parser)
-
-    centralised_training(args.model, centralised_model, *train_validation_data)
