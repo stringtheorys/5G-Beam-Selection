@@ -33,7 +33,8 @@ def southampton_training():
 
     # Load the training and validation data
     training_input = [np.load('../data/lidar_train.npz')['input'], np.load('../data/coord_train.npz')['coordinates']]
-    validation_input = [np.load('../data/lidar_validation.npz')['input'], np.load('../data/coord_validation.npz')['coordinates']]
+    validation_input = [np.load('../data/lidar_validation.npz')['input'],
+                        np.load('../data/coord_validation.npz')['coordinates']]
     training_output = np.load('../data/beams_output_train.npz')['output_classification'].reshape(9234, 256)
     validation_output = np.load('../data/beams_output_validation.npz')['output_classification'].reshape(1960, 256)
 

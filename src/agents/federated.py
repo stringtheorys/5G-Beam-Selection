@@ -17,8 +17,10 @@ def get_vehicle_dataset(total_vehicles, vehicle):
     beam_output, _ = get_beam_output('../data/beams_output_train.npz')
 
     # Split lidar data and beam labels
-    split_lidar_data = lidar_data[vehicle * int(lidar_data.shape[0] / total_vehicles):(vehicle + 1) * int(lidar_data.shape[0] / total_vehicles), :, :, :]
-    split_beam_output = beam_output[vehicle * int(beam_output.shape[0] / total_vehicles):(vehicle + 1) * int(beam_output.shape[0] / total_vehicles), :]
+    split_lidar_data = lidar_data[vehicle * int(lidar_data.shape[0] / total_vehicles):
+                                  (vehicle + 1) * int(lidar_data.shape[0] / total_vehicles), :, :, :]
+    split_beam_output = beam_output[vehicle * int(beam_output.shape[0] / total_vehicles):
+                                    (vehicle + 1) * int(beam_output.shape[0] / total_vehicles), :]
 
     dataset_train = tf.data.Dataset.from_tensor_slices((list(split_lidar_data.astype(np.float32)),
                                                         list(split_beam_output.astype(np.float32))))
