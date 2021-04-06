@@ -14,7 +14,6 @@ module load cuda/11.0
 
 echo $PWD
 cd ~/5G-Beam-Selection/src/
-PYTHONPATH=~/5G-Beam-Selection/src/
 
 python main.py --agent centralised --model imperial
 python main.py --agent centralised --model beamsoup-lidar
