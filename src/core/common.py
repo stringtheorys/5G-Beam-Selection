@@ -3,7 +3,10 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.python.keras.metrics import MeanMetricWrapper
 
-from core.models import imperial_model, beamsoup_lidar_model, beamsoup_coord_model, beamsoup_lidar_coord_model
+# from models.baseline import baseline_image_model, baseline_lidar_model, baseline_coord_model, baseline_fusion_model
+from models.beamsoup import beamsoup_coord_model, beamsoup_lidar_model, beamsoup_joint_model
+from models.imperial import imperial_model
+from models.nu_huskies import husky_coord_model, husky_lidar_model, husky_image_model, husky_fusion_model
 
 
 class TopKThroughputRatio(MeanMetricWrapper):
@@ -55,8 +58,6 @@ def beams_log_scale(y, threshold_below_max):
 
 
 def get_beam_output(output_file, threshold=6):
-    threshold_below_max = threshold
-
     output_cache_file = np.load(output_file)
     y_matrix = np.abs(output_cache_file['output_classification'])
     y_matrix /= np.max(y_matrix)
@@ -71,25 +72,7 @@ def get_beam_output(output_file, threshold=6):
             for rx in range(rx_size):  # inner loop goes over receiver
                 y[i, tx * rx_size + rx] = codebook[rx, tx]  # impose ordering
 
-    return beams_log_scale(y, threshold_below_max), num_classes
-
-
-def get_beam_output_no_normalization(output_file):
-    output_cache_file = np.load(output_file)
-    y_matrix = np.abs(output_cache_file['output_classification'])
-    y_matrix /= np.max(y_matrix)
-    num_classes = y_matrix.shape[1] * y_matrix.shape[2]
-
-    # new ordering of the beams, provided by the Organizers
-    y = np.zeros((y_matrix.shape[0], num_classes))
-    for i in range(0, y_matrix.shape[0], 1):  # go over all examples
-        codebook = np.absolute(y_matrix[i, :])  # read matrix
-        rx_size = codebook.shape[0]  # 8 antenna elements
-        for tx in range(codebook.shape[1]):  # 32 antenna elements
-            for rx in range(rx_size):  # inner loop goes over receiver
-                y[i, tx * rx_size + rx] = codebook[rx, tx]  # impose ordering
-
-    return y, num_classes
+    return beams_log_scale(y, threshold)
 
 
 def model_top_metric_eval(model, validation_lidar_data, validation_beam_output):
@@ -104,29 +87,47 @@ def model_top_metric_eval(model, validation_lidar_data, validation_beam_output):
     return correct, top_k, throughput_ratio_k
 
 
-def parse_model(args):
+def parse_model(model_name):
+    """
+    Parsing the model name and training/validation data
+
+    :param model_name: The model name
+    :return: tensorflow model, training input and output, validation input and output
+    """
     # Load the training and validation datasets
-    training_lidar_data = np.transpose(np.expand_dims(lidar_to_2d('../data/lidar_train.npz'), 1), (0, 2, 3, 1))
-    training_coord_data = np.load('../data/coord_train.npz')['coordinates']
-    training_beam_output, _ = get_beam_output('../data/beams_output_train.npz')
+    train_lidar_data = np.transpose(np.expand_dims(lidar_to_2d('../data/lidar_train.npz'), 1), (0, 2, 3, 1))
+    train_coord_data = np.load('../data/coord_train.npz')['coordinates']
+    train_image_data = np.load('../data/img_input_train_20.npz')['inputs']
+    training_beam_output = get_beam_output('../data/beams_output_train.npz')
 
     val_lidar_data = np.transpose(np.expand_dims(lidar_to_2d('../data/lidar_validation.npz'), 1), (0, 2, 3, 1))
     val_coord_data = np.load('../data/coord_validation.npz')['coordinates']
-    validation_beam_output, _ = get_beam_output('../data/beams_output_validation.npz')
+    val_image_data = np.load('../data/img_input_validation_20.npz')['inputs']
+    validation_beam_output = get_beam_output('../data/beams_output_validation.npz')
 
-    if args.model == 'imperial':
-        model = imperial_model
-        train_input, val_input = training_lidar_data, val_lidar_data
-    elif args.model == 'beamsoup-lidar':
-        model = beamsoup_lidar_model
-        train_input, val_input = training_lidar_data, val_lidar_data
-    elif args.model == 'beamsoup-coord':
-        model = beamsoup_coord_model
-        train_input, val_input = training_coord_data, val_coord_data
-    elif args.model == 'beamsoup':
-        model = beamsoup_lidar_coord_model
-        train_input, val_input = [training_lidar_data, training_coord_data], [val_lidar_data, val_coord_data]
-    else:
-        raise BaseException(f'Error, unknown model: {args.model}')
+    coord, lidar, image = (train_coord_data, val_coord_data), (train_lidar_data, val_lidar_data), \
+                          (train_image_data, val_image_data)
+    coord_lidar = (train_coord_data, train_lidar_data), (val_coord_data, val_lidar_data)
+    coord_lidar_image = (train_coord_data, train_lidar_data, train_image_data), \
+                        (val_coord_data, val_lidar_data, val_image_data)
 
-    return args.model, model, train_input, training_beam_output, val_input, validation_beam_output
+    possible_models = {
+        'imperial': (imperial_model, lidar),
+
+        'beamsoup-coord': (beamsoup_coord_model, coord),
+        'beamsoup-lidar': (beamsoup_lidar_model, lidar),
+        'beamsoup-joint': (beamsoup_joint_model, coord_lidar),
+
+        'husky-coord': (husky_coord_model, coord),
+        'husky-lidar': (husky_lidar_model, lidar),
+        'husky-image': (husky_image_model, image),
+        'husky-fusion': (husky_fusion_model, coord_lidar_image),
+
+        # 'baseline-coord': (baseline_coord_model, coord),
+        # 'baseline-lidar': (baseline_lidar_model, lidar),
+        # 'baseline-image': (baseline_image_model, image),
+        # 'baseline-fusion': (baseline_fusion_model, coord_lidar_image)
+    }
+
+    model, (train_input, val_input) = possible_models[model_name]
+    return model, train_input, training_beam_output, val_input, validation_beam_output
