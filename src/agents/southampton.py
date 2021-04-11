@@ -3,7 +3,7 @@ import numpy as np
 import tensorflow as tf
 
 from core.common import TopKThroughputRatio
-from core.models import beamsoup_lidar_layers, beamsoup_coord_layers
+from models.beamsoup import lidar_model, coord_model
 
 
 def southampton_training():
@@ -18,8 +18,8 @@ def southampton_training():
     top10_throughput = TopKThroughputRatio(k=10, name='top-10-throughput')
 
     # Beamsoup model
-    lidar_input, lidar_layer = beamsoup_lidar_layers()
-    coord_input, coord_layer = beamsoup_coord_layers()
+    lidar_input, lidar_layer = lidar_model()
+    coord_input, coord_layer = coord_model()
     alignment_layer = tf.keras.layers.concatenate([lidar_layer, coord_layer])
     alignment_layer = tf.keras.layers.Dense(600, activation='relu')(alignment_layer)
     alignment_layer = tf.keras.layers.Dense(600, activation='relu')(alignment_layer)
