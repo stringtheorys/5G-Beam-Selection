@@ -87,7 +87,7 @@ def model_top_metric_eval(model, validation_lidar_data, validation_beam_output):
     return correct, top_k, throughput_ratio_k
 
 
-def parse_model(model_name):
+def parse_model(model_name: str):
     """
     Parsing the model name and training/validation data
 
