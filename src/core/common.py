@@ -1,3 +1,4 @@
+from typing import Tuple
 
 import numpy as np
 import tensorflow as tf
@@ -87,7 +88,7 @@ def model_top_metric_eval(model, validation_lidar_data, validation_beam_output):
     return correct, top_k, throughput_ratio_k
 
 
-def parse_model(model_name: str):
+def parse_model(model_name: str) -> Tuple[tf.keras.Model, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Parsing the model name and training/validation data
 
@@ -97,19 +98,19 @@ def parse_model(model_name: str):
     # Load the training and validation datasets
     train_lidar_data = np.transpose(np.expand_dims(lidar_to_2d('../data/lidar_train.npz'), 1), (0, 2, 3, 1))
     train_coord_data = np.load('../data/coord_train.npz')['coordinates']
-    train_image_data = np.load('../data/img_input_train_20.npz')['inputs']
+    # train_image_data = np.load('../data/img_input_train_20.npz')['inputs']
     training_beam_output = get_beam_output('../data/beams_output_train.npz')
 
     val_lidar_data = np.transpose(np.expand_dims(lidar_to_2d('../data/lidar_validation.npz'), 1), (0, 2, 3, 1))
     val_coord_data = np.load('../data/coord_validation.npz')['coordinates']
-    val_image_data = np.load('../data/img_input_validation_20.npz')['inputs']
+    # val_image_data = np.load('../data/img_input_validation_20.npz')['inputs']
     validation_beam_output = get_beam_output('../data/beams_output_validation.npz')
 
-    coord, lidar, image = (train_coord_data, val_coord_data), (train_lidar_data, val_lidar_data), \
-                          (train_image_data, val_image_data)
+    coord, lidar = (train_coord_data, val_coord_data), (train_lidar_data, val_lidar_data)
+    # image = (train_image_data, val_image_data)
     coord_lidar = (train_coord_data, train_lidar_data), (val_coord_data, val_lidar_data)
-    coord_lidar_image = (train_coord_data, train_lidar_data, train_image_data), \
-                        (val_coord_data, val_lidar_data, val_image_data)
+    # coord_lidar_image = (train_coord_data, train_lidar_data, train_image_data), \
+    #                    (val_coord_data, val_lidar_data, val_image_data)
 
     possible_models = {
         'imperial': (imperial_model, lidar),
@@ -120,8 +121,8 @@ def parse_model(model_name: str):
 
         'husky-coord': (husky_coord_model, coord),
         'husky-lidar': (husky_lidar_model, lidar),
-        'husky-image': (husky_image_model, image),
-        'husky-fusion': (husky_fusion_model, coord_lidar_image),
+        # 'husky-image': (husky_image_model, image),
+        # 'husky-fusion': (husky_fusion_model, coord_lidar_image),
 
         # 'baseline-coord': (baseline_coord_model, coord),
         # 'baseline-lidar': (baseline_lidar_model, lidar),
