@@ -48,13 +48,11 @@ def lidar_to_2d(lidar_data_path):
 
 
 def beams_log_scale(y, threshold_below_max):
-    y_shape = y.shape
-    for i in range(0, y_shape[0]):
+    for i in range(0, y.shape[0]):
         output = y[i, :]
         output_log = 20 * np.log10(output + 1e-30)
         output[output_log < np.amax(output_log) - threshold_below_max] = 0
         y[i, :] = output / sum(output)
-
     return y
 
 
@@ -76,19 +74,28 @@ def get_beam_output(output_file, threshold=6):
     return beams_log_scale(y, threshold)
 
 
-def model_top_metric_eval(model, validation_lidar_data, validation_beam_output):
-    predictions = np.argsort(model.predict(validation_lidar_data), axis=1)
+def model_top_metric_eval(model, validation_input, validation_output):
+    """
+    Calculates the number of correct predictions, top k accuracy and throughput ratio for k=1,...,100
+
+    :param model: Model for prediction
+    :param validation_input: Validation input dataset
+    :param validation_output: Validation output dataset
+    :return: Tuple of the number of correct predictions and two lists for the top k accuracy and throughput ratio
+        of length 100 representing k=1,...,100
+    """
+    predictions = np.argsort(model.predict(validation_input), axis=1)
     correct, top_k, throughput_ratio_k = 0, [], []
-    best_throughput = np.sum(np.log2(np.max(validation_beam_output, axis=1) + 1))
+    best_throughput = np.sum(np.log2(np.max(validation_output, axis=1) + 1))
     for pos in range(100):
-        correct += np.sum(predictions[:, -1-pos] == np.argmax(validation_beam_output, axis=1))
-        top_k.append(correct / validation_beam_output.shape[0])
+        correct += np.sum(predictions[:, -pos-1] == np.argmax(validation_output, axis=1))
+        top_k.append(correct / validation_output.shape[0])
         throughput_ratio_k.append(np.sum(np.log2(np.max(np.take_along_axis(
-            validation_beam_output, predictions, axis=1)[:, -1-pos:], axis=1) + 1)) / best_throughput)
+            validation_output, predictions, axis=1)[:, -pos - 1:], axis=1) + 1)) / best_throughput)
     return correct, top_k, throughput_ratio_k
 
 
-def parse_model(model_name: str) -> Tuple[tf.keras.Model, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def parse_model(model_name: str) -> Tuple[tf.keras.models.Sequential, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Parsing the model name and training/validation data
 
@@ -98,19 +105,19 @@ def parse_model(model_name: str) -> Tuple[tf.keras.Model, np.ndarray, np.ndarray
     # Load the training and validation datasets
     train_lidar_data = np.transpose(np.expand_dims(lidar_to_2d('../data/lidar_train.npz'), 1), (0, 2, 3, 1))
     train_coord_data = np.load('../data/coord_train.npz')['coordinates']
-    # train_image_data = np.load('../data/img_input_train_20.npz')['inputs']
+    train_image_data = np.load('../data/img_input_train_20.npz')['inputs']
     training_beam_output = get_beam_output('../data/beams_output_train.npz')
 
     val_lidar_data = np.transpose(np.expand_dims(lidar_to_2d('../data/lidar_validation.npz'), 1), (0, 2, 3, 1))
     val_coord_data = np.load('../data/coord_validation.npz')['coordinates']
-    # val_image_data = np.load('../data/img_input_validation_20.npz')['inputs']
+    val_image_data = np.load('../data/img_input_validation_20.npz')['inputs']
     validation_beam_output = get_beam_output('../data/beams_output_validation.npz')
 
     coord, lidar = (train_coord_data, val_coord_data), (train_lidar_data, val_lidar_data)
-    # image = (train_image_data, val_image_data)
+    image = (train_image_data, val_image_data)
     coord_lidar = (train_coord_data, train_lidar_data), (val_coord_data, val_lidar_data)
-    # coord_lidar_image = (train_coord_data, train_lidar_data, train_image_data), \
-    #                    (val_coord_data, val_lidar_data, val_image_data)
+    coord_lidar_image = (train_coord_data, train_lidar_data, train_image_data), \
+                        (val_coord_data, val_lidar_data, val_image_data)
 
     possible_models = {
         'imperial': (imperial_model, lidar),
@@ -121,9 +128,11 @@ def parse_model(model_name: str) -> Tuple[tf.keras.Model, np.ndarray, np.ndarray
 
         'husky-coord': (husky_coord_model, coord),
         'husky-lidar': (husky_lidar_model, lidar),
-        # 'husky-image': (husky_image_model, image),
-        # 'husky-fusion': (husky_fusion_model, coord_lidar_image),
+        'husky-image': (husky_image_model, image),
+        'husky-fusion': (husky_fusion_model, coord_lidar_image),
 
+        # Baseline specifications provided by NU Husky are wrong and tensorflow throws an error.
+        #   Unable to find the correct specifications
         # 'baseline-coord': (baseline_coord_model, coord),
         # 'baseline-lidar': (baseline_lidar_model, lidar),
         # 'baseline-image': (baseline_image_model, image),
