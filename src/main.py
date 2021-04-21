@@ -4,7 +4,7 @@ import gc
 
 from agents.centralised import centralised_training
 from agents.distributed import distributed_training
-from agents.federated import federated_training
+# from agents.federated import federated_training
 from agents.southampton import southampton_training
 from communication import basestation, car_receiver
 from core.common import parse_model

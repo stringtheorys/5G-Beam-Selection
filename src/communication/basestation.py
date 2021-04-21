@@ -16,10 +16,11 @@ from core.common import parse_model
 
 # Script argument parser with a range of argument types: training, model, epochs, host, port and batch-size
 parser = argparse.ArgumentParser()
+parser.add_argument('-a', '--agent') # Ignore
 parser.add_argument('-t', '--training', default='distributed', choices=['centralised', 'distributed', 'federated'])
 parser.add_argument('-m', '--model', default='imperial')  # Add choices
-parser.add_argument('-e', '--epochs', defaults=1000)
-parser.add_argument('-h', '--host', default='127.0.0.1')
+parser.add_argument('-e', '--epochs', default=1000)
+parser.add_argument('-z', '--host', default='127.0.0.1')
 parser.add_argument('-p', '--port', default=65432)
 parser.add_argument('-b', '--batch-size', default=16)
 
