@@ -103,7 +103,9 @@ def distributed_training(name, model, training_input, training_output, validatio
 
     # Custom evaluation of the trained model
     print('Logging the evaluations')
-    correct, top_k, throughput_ratio_k = model_top_metric_eval(model, validation_input, validation_output)
+    # Custom evaluation of the trained model
+    correct, top_k_accuracy, top_k_throughput_ratio = model_top_metric_eval(model, validation_input, validation_output)
+    # print(correct, top_k, throughput_ratio_k)
     with open(f'../results/distributed-{name}-eval.json', 'w') as file:
-        json.dump({'correct': int(correct), 'top-k': top_k, 'throughput-ratio-k': throughput_ratio_k,
-                   'history': history}, file)
+        json.dump({'correct': int(correct), 'top-k-accuracy': top_k_accuracy,
+                   'top-k-throughput-ratio': top_k_throughput_ratio, 'history': history}, file)

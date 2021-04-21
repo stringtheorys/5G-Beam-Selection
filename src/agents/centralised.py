@@ -34,8 +34,8 @@ def centralised_training(name, model, training_input, training_output, validatio
     model.save_weights(f'../results/models/centralised-{name}/model')
 
     # Custom evaluation of the trained model
-    correct, top_k, throughput_ratio_k = model_top_metric_eval(model, validation_input, validation_output)
+    correct, top_k_accuracy, throughput_ratio_k = model_top_metric_eval(model, validation_input, validation_output)
     # print(correct, top_k, throughput_ratio_k)
     with open(f'../results/centralised-{name}-eval.json', 'w') as file:
-        json.dump({'correct': int(correct), 'top-k': top_k, 'throughput-ratio-k': throughput_ratio_k,
+        json.dump({'correct': int(correct), 'top-k-accuracy': top_k_accuracy, 'throughput-ratio-k': throughput_ratio_k,
                    'history': {key: [int(val) for val in vals] for key, vals in history.history.items()}}, file)
