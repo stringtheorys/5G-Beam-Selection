@@ -38,7 +38,7 @@ def start(args):
 
         # Parse the selected model, determine the model size and initialise the optimiser
         model, *train_validation_data = parse_model(args.model)
-        model_size = len(dumps(model.trainable_variables))
+        model_size = len(dumps(model.get_weights()))
         optimiser = tf.keras.optimizers.Adam()
 
         # Generate the training dataset for the centralised training method
@@ -51,7 +51,7 @@ def start(args):
 
         conn.recv(1024)  # Client returns 'ready' then completed its preprocessing
         for epoch in range(args.epochs):
-            conn.send(dumps(model.trainable_variables))  # Sends the client the current weights of the model
+            conn.send(dumps(model.get_weights()))  # Sends the client the current weights of the model
 
             if args.training == 'centralised':
                 conn.send(dumps(dataset.get_next()))  # Sends the client, the dataset samples in which to use
@@ -71,9 +71,3 @@ def start(args):
 
         # Send an empty msg to the client to indicate the training is over
         conn.send(b'')
-
-
-if __name__ == '__main__':
-    parsed_args = parser.parse_args()
-
-    start(parsed_args)

@@ -7,7 +7,6 @@ import argparse
 import socket
 from pickle import dumps, loads
 
-import numpy as np
 import tensorflow as tf
 
 from core.common import parse_model
@@ -17,6 +16,16 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-h', '--host', default='127.0.0.1')
 parser.add_argument('-p', '--port', default=65432)
 parser.add_argument('-b', '--batch-size', default=16)
+
+
+@tf.function
+def training_step(model, x, y, loss_fn):
+    with tf.GradientTape() as tape:
+        prediction = model(x)
+        loss = loss_fn(prediction, y)
+
+    gradients = tape.gradient(loss, model.trainable_variables)
+    return loss, gradients
 
 
 def start(args):
@@ -32,10 +41,10 @@ def start(args):
 
         # Parse and generate the model then tell the server that it is ready to start training
         model, training_input, training_output, validation_input, validation_output = parse_model(model_type)
-        model_size = len(dumps(model.trainable_variables))
+        model_size = len(dumps(model.get_weights()))
         samples_size = len(dumps(tf.range(args.batch_size)))
         optimiser = tf.keras.optimizers.Adam()
-        loss = tf.keras.losses.CategoricalCrossentropy()
+        loss_fn = tf.keras.losses.CategoricalCrossentropy()
 
         # When the client is ready will send over all of the
         receiver_socket.send(b'ready')
@@ -46,35 +55,23 @@ def start(args):
                 print('Ending training')
                 break
 
-            # Receives and decodes the model trainable variables
-            model.trainable_variables = loads(data)
+            # Receives and decodes the model trainable weights
+            model.set_weights(loads(data))
             # Train using the three types of learning methods
             if training_type == 'centralised':
-                sample_indexes = loads(receiver_socket.recv(samples_size))
+                training_indexes = loads(receiver_socket.recv(samples_size))
 
-                with tf.GradientTape() as tape:
-                    error = loss(model(tf.gather(training_input, sample_indexes)),
-                                 tf.gather(training_output, sample_indexes))
-
-                gradient = tape.gradient(error, model.trainable_variables)
-                receiver_socket.send(dumps(gradient))
+                gradients, loss = training_step(model, tf.gather(training_input, training_indexes),
+                                                tf.gather(training_output, training_indexes), loss_fn)
+                receiver_socket.send(dumps(gradients))
             else:
-                sample_indexes = np.random.randint(0, len(training_input), args.batch_size)
-                with tf.GradientTape() as tape:
-                    error = loss(model(tf.gather(training_input, sample_indexes)),
-                                 tf.gather(training_output, sample_indexes))
-
-                gradients = tape.gradient(error, model.trainable_variables)
+                training_indexes = tf.random.uniform(args.batch_size, 0, len(training_input), dtype=tf.int32)
+                gradients, loss = training_step(model, tf.gather(training_input, training_indexes),
+                                                tf.gather(training_output, training_indexes), loss_fn)
                 if training_type == 'distributed':
                     receiver_socket.send(dumps(gradients))
                 elif training_type == 'federated':
                     optimiser.apply_gradients(zip(gradients, model.trainable_variables))
-                    receiver_socket.send(dumps(model.trainable_variables))
+                    receiver_socket.send(dumps(model.get_weights()))
                 else:
                     raise Exception(f'Unknown training type: {training_type}')
-
-
-if __name__ == '__main__':
-    parsed_arg = parser.parse_args()
-
-    start(parsed_arg)
