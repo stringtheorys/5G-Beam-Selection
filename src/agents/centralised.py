@@ -1,5 +1,5 @@
 """
-Testing file for training of centralised beam alignment agent
+Training for a centralised version of the beam alignment agent
 """
 
 import datetime
@@ -7,10 +7,11 @@ import json
 
 import tensorflow as tf
 
-from core.common import model_top_metric_eval, TopKThroughputRatio
+from core.metrics import top_k_metrics, TopKThroughputRatio
 
 
-def centralised_training(name, model, training_input, training_output, validation_input, validation_output, epochs=15):
+def centralised_training(name: str, model: tf.keras.models.Sequential,
+                         training_input, training_output, validation_input, validation_output, epochs=15):
     # Loss and optimiser for the model
     loss = tf.keras.losses.CategoricalCrossentropy()
     optimiser = tf.keras.optimizers.Adam()
@@ -34,7 +35,7 @@ def centralised_training(name, model, training_input, training_output, validatio
     model.save_weights(f'../results/models/centralised-{name}/model')
 
     # Custom evaluation of the trained model
-    correct, top_k_accuracy, throughput_ratio_k = model_top_metric_eval(model, validation_input, validation_output)
+    correct, top_k_accuracy, throughput_ratio_k = top_k_metrics(model, validation_input, validation_output)
     # print(correct, top_k, throughput_ratio_k)
     with open(f'../results/centralised-{name}-eval.json', 'w') as file:
         json.dump({'correct': int(correct), 'top-k-accuracy': top_k_accuracy, 'throughput-ratio-k': throughput_ratio_k,

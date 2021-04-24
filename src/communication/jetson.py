@@ -9,12 +9,12 @@ from pickle import dumps, loads
 
 import tensorflow as tf
 
-from core.common import parse_model
+from core.io import parse_model
 
 # Script argument parser with the server host and port
 parser = argparse.ArgumentParser()
-parser.add_argument('-a', '--agent') # Ignore
-parser.add_argument('-m', '--model') # Ignore
+parser.add_argument('-a', '--agent')  # Ignore
+parser.add_argument('-m', '--model')  # Ignore
 parser.add_argument('-z', '--host', default='127.0.0.1')
 parser.add_argument('-p', '--port', default=65432)
 parser.add_argument('-b', '--batch-size', default=16)

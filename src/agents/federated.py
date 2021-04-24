@@ -1,123 +1,98 @@
-"""
-Testing file for training of federated learning beam alignment agent
-"""
-
-import collections
 import json
 
-import numpy as np
 import tensorflow as tf
-import tensorflow_federated as tff
+from tqdm import tqdm
 
-from core.common import lidar_to_2d, get_beam_output, model_top_metric_eval
-
-
-def get_vehicle_dataset(total_vehicles, vehicle):
-    lidar_data = np.transpose(np.expand_dims(lidar_to_2d('../data/lidar_train.npz'), 1), (0, 2, 3, 1))
-    beam_output, _ = get_beam_output('../data/beams_output_train.npz')
-
-    # Split lidar data and beam labels
-    split_lidar_data = lidar_data[vehicle * int(lidar_data.shape[0] / total_vehicles):
-                                  (vehicle + 1) * int(lidar_data.shape[0] / total_vehicles), :, :, :]
-    split_beam_output = beam_output[vehicle * int(beam_output.shape[0] / total_vehicles):
-                                    (vehicle + 1) * int(beam_output.shape[0] / total_vehicles), :]
-
-    dataset_train = tf.data.Dataset.from_tensor_slices((list(split_lidar_data.astype(np.float32)),
-                                                        list(split_beam_output.astype(np.float32))))
-    return dataset_train
+from core.metrics import TopKThroughputRatio, top_k_metrics
+from core.training import training_step, validation_step
 
 
-def get_validation_dataset():
-    validation_lidar_data = np.transpose(np.expand_dims(lidar_to_2d('../data/lidar_validation.npz'), 1), (0, 2, 3, 1))
-    validation_beam_output, _ = get_beam_output('../data/beams_output_validation.npz')
-    dataset_test = tf.data.Dataset.from_tensor_slices((list(validation_lidar_data.astype(np.float32)),
-                                                       list(validation_beam_output.astype(np.float32))))
-    return dataset_test
+def federated_training(name: str, model_fn, num_vehicles: int,
+                       training_input, training_output, validation_input, validation_output,
+                       epochs=15, batch_size=16):
+    """
+    Custom federated training
 
+    :param name: Model name
+    :param model_fn: function for creating a tensorflow model
+    :param num_vehicles: the number of vehicles
+    :param training_input: training input dataset
+    :param training_output: training output dataset
+    :param validation_input: validation input dataset
+    :param validation_output: validation output dataset
+    :param epochs: number of epochs
+    :param batch_size: batch training size
+    """
+    # Loss and optimiser for the each vehicle model
+    loss_fn = tf.keras.losses.CategoricalCrossentropy()
+    vehicle_optimisers = [tf.keras.optimizers.Adam() for _ in range(num_vehicles)]
 
-def preprocess(dataset):
-    def batch_format_fn(elem_1, elem_2):
-        return collections.OrderedDict(x=elem_1, y=elem_2)
-    return dataset.repeat(1).shuffle(20).batch(16).map(batch_format_fn).prefetch(10)
+    # Vehicle and global models
+    global_model = model_fn()
+    vehicle_models = [model_fn() for _ in range(num_vehicles)]
 
+    # Generate the training datasets
+    vehicle_training_dataset = tf.data.Dataset.from_tensor_slices((training_input, training_output))
+    vehicle_training_dataset = tf.split(vehicle_training_dataset, num_split=num_vehicles)  # maybe change the axis=-1
+    vehicle_training_dataset = [dataset.shuffle(buffer_size=512).batch(batch_size)
+                                for dataset in vehicle_training_dataset]
 
-def model_fn():
-    model = tf.keras.models.Sequential([
-        tf.keras.layers.InputLayer((20, 200, 1)),
-        tf.keras.layers.Conv2D(5, 3, 1, padding='same'),  # kernel_initializer=initializers.HeUniform),
-        tf.keras.layers.BatchNormalization(axis=3),
-        tf.keras.layers.PReLU(shared_axes=[1, 2]),
-        tf.keras.layers.Conv2D(5, 3, 1, padding='same'),  # kernel_initializer=initializers.HeUniform),
-        tf.keras.layers.BatchNormalization(axis=3),
-        tf.keras.layers.PReLU(shared_axes=[1, 2]),
-        tf.keras.layers.Conv2D(5, 3, 2, padding='same'),  # kernel_initializer=initializers.HeUniform),
-        tf.keras.layers.BatchNormalization(axis=3),
-        tf.keras.layers.PReLU(shared_axes=[1, 2]),
-        tf.keras.layers.Conv2D(5, 3, 1, padding='same'),  # kernel_initializer=initializers.HeUniform),
-        tf.keras.layers.BatchNormalization(axis=3),
-        tf.keras.layers.PReLU(shared_axes=[1, 2]),
-        tf.keras.layers.Conv2D(5, 3, 2, padding='same'),  # , kernel_initializer=initializers.HeUniform),
-        tf.keras.layers.BatchNormalization(axis=3),
-        tf.keras.layers.PReLU(shared_axes=[1, 2]),
-        tf.keras.layers.Conv2D(1, 3, (1, 2), padding='same'),  # , kernel_initializer=initializers.HeUniform),
-        tf.keras.layers.BatchNormalization(axis=3),
-        tf.keras.layers.PReLU(shared_axes=[1, 2]),
-        tf.keras.layers.Flatten(),
-        tf.keras.layers.Dense(16),
-        tf.keras.layers.ReLU(),
-        # layers.Dropout(0.7),
-        tf.keras.layers.Dense(256),
-        tf.keras.layers.Softmax()
-    ])
-    top_1 = tf.keras.metrics.TopKCategoricalAccuracy(k=1, name='top-1')
-    top_10 = tf.keras.metrics.TopKCategoricalAccuracy(k=10, name='top-10')
-    return tff.learning.from_keras_model(model,
-                                         input_spec=preprocess(get_validation_dataset()).element_spec,
-                                         loss=tf.keras.losses.CategoricalCrossentropy(),
-                                         metrics=[top_1, top_10])
+    # Vehicle metrics
+    loss_metric = tf.keras.metrics.Mean(name=f'loss')
+    metrics = [
+        tf.keras.metrics.TopKCategoricalAccuracy(k=1, name='top-1-accuracy'),
+        tf.keras.metrics.TopKCategoricalAccuracy(k=10, name='top-10-accuracy'),
+        TopKThroughputRatio(k=1, name='top-1-throughput'),
+        TopKThroughputRatio(k=10, name='top-10-throughput')
+    ]
 
+    # Save the metric history over training steps
+    history = []
+    for epochs in tqdm(epochs):
+        print(f'Epochs: {epochs}')
+        epoch_results = {}
+        for vehicle_id in range(num_vehicles):
+            for training_x, training_y in vehicle_training_dataset[vehicle_id]:
+                loss = training_step(vehicle_models[vehicle_id], training_x, training_y, loss_fn,
+                                     vehicle_optimisers[vehicle_id], metrics)
+                loss_metric[vehicle_id].update_state(loss)
 
-def federated_training():
-    # Arguments
-    num_vehicles, aggregation_rounds = 2, 30
+            # Vehicle results
+            vehicle_result = {'loss': float(loss_metric.result().numpy())}
+            loss_metric.reset_states()
 
-    # initialise the federated learning
-    federated_trainer = tff.learning.build_federated_averaging_process(
-        model_fn,
-        client_optimizer_fn=lambda: tf.keras.optimizers.Adam(lr=5e-3),
-        server_optimizer_fn=lambda: tf.keras.optimizers.SGD(lr=.25))
-    federated_evaluation = tff.learning.build_federated_evaluation(model_fn)
-    federated_state = federated_trainer.initialize()
+            # Training metrics for the vehicle
+            for metric in metrics:
+                vehicle_result[f'training-{metric.name}'] = float(metric.result().numpy())
+                metric.reset_states()
 
-    # Generate vehicle training dataset and the testing dataset
-    vehicle_training_dataset = [preprocess(get_vehicle_dataset(num_vehicles, v)) for v in range(num_vehicles)]
-    validation_data = [preprocess(get_validation_dataset())]
-    custom_val_lidar = np.transpose(np.expand_dims(lidar_to_2d('../data/lidar_validation.npz'), 1), (0, 2, 3, 1))
-    custom_val_beam, _ = get_beam_output('../data/beams_output_validation.npz')
+            # Validation metrics for the vehicle
+            validation_step(vehicle_models[vehicle_id], validation_input, validation_output, metrics)
+            for metric in metrics:
+                vehicle_result[f'validation-{metric.name}'] = float(metric.result().numpy())
+                metric.reset_states()
 
-    # Evaluation metrics
-    metrics = {'training-top-1': [], 'training-top-10': [], 'testing-top-1': [], 'testing-top-10': [],
-               'correct': [], 'top-k': [], 'throughput_ratio': []}
+            print(f'\tVehicle id: {vehicle_id} - {vehicle_result}')
+            epoch_results[f'vehicle {vehicle_id}'] = vehicle_result
 
-    # Federated Training
-    for round_num in range(aggregation_rounds):
-        federated_state, training_metrics = federated_trainer.next(federated_state, vehicle_training_dataset)
-        testing_metrics = federated_evaluation(federated_state.model, validation_data)
+        # Add the each of the vehicle results to the global model
+        global_model.set_weight(tf.reduce_mean([model for model in vehicle_models]))
+        
+        # Validation of the global model
+        validation_step(global_model, validation_input, validation_output)
+        global_results = {}
+        for metric in metrics:
+            global_results[f'validation-{metric.name}'] = float(metric.result().numpy())
+            metric.reset_states()
+        epoch_results['global'] = global_results
 
-        # Save metrics
-        metrics['training-top-1'].append(training_metrics['top-1'])
-        metrics['training-top-10'].append(training_metrics['top-10'])
-        metrics['loss'].append(training_metrics['loss'])
-        metrics['testing-top-1'].append(testing_metrics['top-1'])
-        metrics['testing-top-10'].append(testing_metrics['top-10'])
+        # Add the epoch results to the history
+        history.append(epoch_results)
+    global_model.save_weights(f'../results/models/federated-{name}/model')
 
-        # Custom evaluations
-        correct, top_k, throughput_ratio = model_top_metric_eval(federated_state.model, custom_val_lidar, custom_val_beam)
-        metrics['correct'].append(correct)
-        metrics['top-k'].append(top_k)
-        metrics['throughput-ratio-k'].append(throughput_ratio)
+    # Top K metrics
+    top_k_accuracy, top_k_throughput_ratio = top_k_metrics(global_model, validation_input, validation_output)
+    with open(f'../results/federated-{name}-eval.json', 'w') as file:
+        json.dump({'top-k-accuracy': top_k_accuracy, 'top-k-throughput-ratio': top_k_throughput_ratio,
+                   'history': history}, file)
 
-    # Save the agent results
-    with open('../federated-agent-metrics.json') as file:
-        json.dump(metrics, file)
-    federated_state.model.save('models/federated-model')

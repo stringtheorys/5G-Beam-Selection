@@ -12,7 +12,7 @@ from pickle import dumps, loads
 
 import tensorflow as tf
 
-from core.common import parse_model
+from core.io import parse_model
 
 # Script argument parser with a range of argument types: training, model, epochs, host, port and batch-size
 parser = argparse.ArgumentParser()
@@ -66,7 +66,7 @@ def start(args):
             elif args.training == 'federated':
                 # Receive the model weights from the client
                 model_weights = loads(base_station_socket.recv(model_size))
-                # TODO add the federated learning update
+                model.set_weights(model_weights)
             else:
                 raise Exception(f'Unknown training type: {args.training}')
 
