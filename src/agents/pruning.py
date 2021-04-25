@@ -1,15 +1,13 @@
 import collections
+import os
+import tempfile
+import zipfile
 
 import numpy as np
-import scipy.io as sio
 import tensorflow as tf
 import tensorflow_federated as tff
 import tensorflow_model_optimization as tfmot
-
 from dataloader import LidarDataset2D
-import os
-import zipfile
-import tempfile
 
 print("paranoia check")
 
@@ -37,15 +35,15 @@ pruning_params = {
 
 
 # Functions
-def get_local_dataset(lidar_path, beam_path, num_vehicles, vehicle_ID):
+def get_local_dataset(lidar_path, beam_path, num_vehicles, vehicle_id):
     training_data = LidarDataset2D(lidar_path, beam_path)
     training_data.lidar_data = np.transpose(training_data.lidar_data, (0, 2, 3, 1))
     x = training_data.lidar_data
     # Split Lidar Data
-    xx = x[vehicle_ID * int(x.shape[0] / num_vehicles):(vehicle_ID + 1) * int(x.shape[0] / num_vehicles), :, :, :]
+    xx = x[vehicle_id * int(x.shape[0] / num_vehicles):(vehicle_id + 1) * int(x.shape[0] / num_vehicles), :, :, :]
     y = training_data.beam_output
     # Split Beam Labels
-    yy = y[vehicle_ID * int(y.shape[0] / num_vehicles):(vehicle_ID + 1) * int(y.shape[0] / num_vehicles), :]
+    yy = y[vehicle_id * int(y.shape[0] / num_vehicles):(vehicle_id + 1) * int(y.shape[0] / num_vehicles), :]
 
     dataset_train = tf.data.Dataset.from_tensor_slices((list(xx.astype(np.float32)), list(yy.astype(np.float32))))
     # sio.savemat('label'+str(k)+'.mat',{'label'+str(k):yy})
@@ -114,26 +112,28 @@ def model_fn():
 
 def apply_pruning_to_dense(layer):
     if isinstance(layer, tf.keras.layers.Dense):
-        return tfmot.sparsity.keras.prune_low_magnitude(layer,**pruning_params)
+        return tfmot.sparsity.keras.prune_low_magnitude(layer, **pruning_params)
     return layer
+
 
 def get_gzipped_model_size(model):
     _, new_pruned_keras_file = tempfile.mkstemp(".h5")
     print("Saving pruned model to: ", new_pruned_keras_file)
     tf.keras.models.save_model(model, new_pruned_keras_file, include_optimizer=False)
-    
+
     # Zip the .h5 model file
     _, zip3 = tempfile.mkstemp(".zip")
     with zipfile.ZipFile(zip3, "w", compression=zipfile.ZIP_DEFLATED) as f:
         f.write(new_pruned_keras_file)
     print(
-        "Size of ",str(model)," before compression: %.2f Mb"
-        % (os.path.getsize(new_pruned_keras_file) / float(2 ** 20))
+        "Size of ", str(model), " before compression: %.2f Mb"
+                                % (os.path.getsize(new_pruned_keras_file) / float(2 ** 20))
     )
     print(
-        "Size of ",str(model)," after compression: %.2f Mb"
-        % (os.path.getsize(zip3) / float(2 ** 20))
+        "Size of ", str(model), " after compression: %.2f Mb"
+                                % (os.path.getsize(zip3) / float(2 ** 20))
     )
+
 
 def num_pruned(model):
     for i, w in enumerate(model.get_weights()):
@@ -142,6 +142,7 @@ def num_pruned(model):
                 model.weights[i].name, w.size, np.sum(w == 0) / w.size * 100
             )
         )
+
 
 # Main
 iterative_process = tff.learning.build_federated_averaging_process(
@@ -179,8 +180,8 @@ for MONTECARLOi in range(MONTECARLO):
         state, metrics = iterative_process.next(state, federated_train_data)
         test_metrics = evaluation(state.model, federated_test_data)
 
-        print(str(metrics),"\n")
-        print(str(test_metrics),3*"\n")
+        print(str(metrics), "\n")
+        print(str(test_metrics), 3 * "\n")
 
         top1[round_num] = test_metrics['top_1_categorical_accuracy']
         top10[round_num] = test_metrics['top_10_categorical_accuracy']
@@ -189,27 +190,25 @@ for MONTECARLOi in range(MONTECARLO):
         keras_model = create_keras_model()
         # keras_model.compile(loss=tf.keras.losses.CategoricalCrossentropy(), metrics=[top1,top10])
         state.model.assign_weights_to(keras_model)
-        
-        print("Base Model Summary",2*"\n")
+
+        print("Base Model Summary", 2 * "\n")
         keras_model.summary()
         get_gzipped_model_size(keras_model)
-        
 
-        
-        model_for_pruning = tf.keras.models.clone_model(keras_model,clone_function=apply_pruning_to_dense)
-                                                        
-        print(2*"\n","Pruned Model Summary",2*"\n")
+        model_for_pruning = tf.keras.models.clone_model(keras_model, clone_function=apply_pruning_to_dense)
+
+        print(2 * "\n", "Pruned Model Summary", 2 * "\n")
         model_for_pruning.summary()
         num_pruned(model_for_pruning)
         get_gzipped_model_size(model_for_pruning)
-        
+
         model_for_export = tfmot.sparsity.keras.strip_pruning(model_for_pruning)
 
-        print(2*"\n","Strip Pruned Model Summary",2*"\n")
+        print(2 * "\n", "Strip Pruned Model Summary", 2 * "\n")
         model_for_export.summary()
         num_pruned(model_for_export)
         get_gzipped_model_size(model_for_export)
-        
+
         test_preds = model_for_pruning.predict(test_data.lidar_data, batch_size=100)
         test_preds_idx = np.argsort(test_preds, axis=1)
         top_k = np.zeros(100)
@@ -231,11 +230,6 @@ for MONTECARLOi in range(MONTECARLO):
     # np.savez("federated.npz", classification=top_k, throughput_ratio=throughput_ratio_at_k)
     accFL = accFL + metrics['train']['top_10_categorical_accuracy'] / MONTECARLO
 
-    print(MONTECARLOi,"\n")
+    print(MONTECARLOi, "\n")
 
 print(accFL)
-
-
-
-
-
