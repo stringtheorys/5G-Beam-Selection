@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 #SBATCH --partition=gtx1080
