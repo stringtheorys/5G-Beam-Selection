@@ -36,7 +36,7 @@ def beams_log_scale(y, threshold_below_max):
     return y
 
 
-def beam_output(output_file: str, threshold: int = 6):
+def beam_outputs(output_file: str, threshold: int = 6):
     """
     Generate the beam output based on the output classification file
 

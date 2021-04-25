@@ -38,7 +38,8 @@ def start(args):
         print(f'[+] Connection accepted - {addr}')
 
         # Parse the selected model, determine the model size and initialise the optimiser
-        model, *train_validation_data = parse_model(args.model)
+        model_fn, *train_validation_data = parse_model(args.model)
+        model = model_fn()
         model_size = len(dumps(model.get_weights()))
         optimiser = tf.keras.optimizers.Adam()
 

@@ -2,7 +2,7 @@
 import tensorflow as tf
 
 
-def coord_model():
+def _coord_model():
     _input_coord = tf.keras.layers.Input(shape=(2, 1))
     _coord_layer = tf.keras.layers.Dense(1024, activation='relu')(_input_coord)
     _coord_layer = tf.keras.layers.Dense(512, activation='relu')(_coord_layer)
@@ -10,7 +10,7 @@ def coord_model():
     return _input_coord, _coord_layer
 
 
-def lidar_model():
+def _lidar_model():
     _input_layer = tf.keras.layers.Input(shape=(20, 200, 1))
     _lidar_layer = tf.keras.layers.Conv2D(30, kernel_size=(11, 11))(_input_layer)
 
@@ -26,7 +26,7 @@ def lidar_model():
     return _input_layer, _lidar_layer
 
 
-def image_model():
+def _image_model():
     _input_layer = tf.keras.layers.Input((9234, 48, 81))
     _image_layer = tf.keras.layers.Conv2D(8, (3, 3))
 
@@ -37,27 +37,30 @@ def image_model():
     return _input_layer, _image_layer
 
 
-# Coord model
-coord_input, coord_layer = coord_model()
-output_layer = tf.keras.layers.Dense(256, activation='softmax')(coord_layer)
-baseline_coord_model = tf.keras.models.Model(inputs=coord_input, outputs=output_layer)
+def baseline_coord_model_fn():
+    coord_input, coord_layer = _coord_model()
+    output_layer = tf.keras.layers.Dense(256, activation='softmax')(coord_layer)
+    return tf.keras.models.Model(inputs=coord_input, outputs=output_layer)
 
-# Lidar model
-lidar_input, lidar_layer = lidar_model()
-output_layer = tf.keras.layers.Dense(256, activation='softmax')(lidar_layer)
-baseline_lidar_model = tf.keras.models.Model(inputs=lidar_input, outputs=output_layer)
 
-# Image model
-image_input, image_layer = image_model()
-output_layer = tf.keras.layers.Dense(256, activation='softmax')(image_layer)
-baseline_image_model = tf.keras.models.Model(inputs=image_input, outputs=output_layer)
+def baseline_lidar_model_fn():
+    lidar_input, lidar_layer = _lidar_model()
+    output_layer = tf.keras.layers.Dense(256, activation='softmax')(lidar_layer)
+    return tf.keras.models.Model(inputs=lidar_input, outputs=output_layer)
 
-# Fusion model
-coord_input, coord_layer = coord_model()
-lidar_input, lidar_layer = lidar_model()
-image_input, image_layer = image_model()
-concat_layer = tf.keras.layers.concatenate([coord_layer, lidar_layer, image_layer])
 
-layer = tf.keras.layers.Dense(512, activation='relu')(concat_layer)
-output_layer = tf.keras.layers.Dense(256, activation='softmax')(layer)
-baseline_fusion_model = tf.keras.models.Model(inputs=[coord_input, image_input, lidar_input], outputs=output_layer)
+def baseline_image_model_fn():
+    image_input, image_layer = _image_model()
+    output_layer = tf.keras.layers.Dense(256, activation='softmax')(image_layer)
+    return tf.keras.models.Model(inputs=image_input, outputs=output_layer)
+
+
+def baseline_fusion_model_fn():
+    coord_input, coord_layer = _coord_model()
+    lidar_input, lidar_layer = _lidar_model()
+    image_input, image_layer = _image_model()
+    concat_layer = tf.keras.layers.concatenate([coord_layer, lidar_layer, image_layer])
+
+    layer = tf.keras.layers.Dense(512, activation='relu')(concat_layer)
+    output_layer = tf.keras.layers.Dense(256, activation='softmax')(layer)
+    return tf.keras.models.Model(inputs=[coord_input, image_input, lidar_input], outputs=output_layer)

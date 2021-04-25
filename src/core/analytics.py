@@ -5,21 +5,9 @@ import json
 import numpy as np
 
 
-def plt_evaluation(filename):
+def plt_numerology(filename):
     with open(filename) as file:
         data = json.load(file)
-
-    fig, ax = plt.subplots(figsize=(8, 5))
-    ax.plot(np.arange(100), data['top-k'])
-    ax.set_title('Top K Accuracy')
-    plt.savefig('top-k-accuracy.png')
-    plt.show()
-
-    fig, ax = plt.subplots(figsize=(8, 5))
-    ax.plot(np.arange(100), data['throughput-ratio-k'])
-    ax.set_title('Top K Throughput Ratio')
-    plt.savefig('top-k-throughput-ratio.png')
-    plt.show()
 
     initial_processing = 100
     fig, ax = plt.subplots(figsize=(8, 5))
@@ -31,7 +19,7 @@ def plt_evaluation(filename):
     ax.set_ylabel('Ratio between the throughput ratio and the search time')
     ax.set_xlabel('Top K Beams')
     plt.legend()
-    plt.savefig('top-k-throughput-ratio-over-time.png')
+    plt.savefig('numerology.png')
     plt.show()
 
 
@@ -56,14 +44,16 @@ def plt_top_k():
     axs[0].legend()
     axs[0].set_xlabel('K')
     axs[0].set_ylabel('Accuracy')
+
     axs[1].set_title('Top K Throughput Ratio')
     axs[1].grid()
     axs[1].set_xlabel('K')
     axs[1].set_ylabel('Throughput Ratio')
     axs[1].legend()
-    plt.savefig('test.png')
+
+    plt.savefig('top-k.png')
     plt.show()
 
 
-# plt_evaluation('../agents/centralised_agent_eval.json')
+plt_numerology('../agents/centralised_agent_eval.json')
 plt_top_k()

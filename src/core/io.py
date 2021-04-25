@@ -1,30 +1,57 @@
-import numpy as np
-import tensorflow as tf
+import argparse
 from typing import Tuple
 
-from core.dataset import lidar_to_2d, beam_output
-from models.beamsoup import beamsoup_coord_model, beamsoup_lidar_model, beamsoup_joint_model
-from models.imperial import imperial_model
-from models.nu_huskies import husky_coord_model, husky_lidar_model, husky_image_model, husky_fusion_model
+import numpy as np
+import tensorflow as tf
+
+from core.dataset import lidar_to_2d, beam_outputs, beam_outputs_v2
+from models.baseline import baseline_coord_model_fn, baseline_lidar_model_fn, baseline_image_model_fn, \
+    baseline_fusion_model_fn
+from models.beamsoup import beamsoup_coord_model_fn, beamsoup_lidar_model_fn, beamsoup_joint_model_fn
+from models.imperial import imperial_model_fn
+from models.nu_huskies import nu_husky_coord_model_fn, nu_husky_lidar_model_fn, nu_husky_image_model_fn, \
+    nu_husky_fusion_model_fn
+from models.southampton import southampton_model_fn
 
 
-def parse_model(model_name: str) -> Tuple[tf.keras.models.Sequential, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+parser = argparse.ArgumentParser()
+parser.add_argument('-a', '--agent', default='centralised', choices=['centralised', 'distributed', 'federated',
+                                                                     'southampton', 'basestation', 'jetson'])
+model_choices = ['imperial', 'beamsoup-coord', 'beamsoup-lidar', 'beamsoup-joint',
+                 'husky-coord', 'husky-lidar', 'husky-image', 'husky-fusion',
+                 'baseline-coord', 'baseline-lidar', 'baseline-image', 'baseline-fusion']
+parser.add_argument('-m', '--model', default='imperial', choices=model_choices)
+parser.add_argument('-v', '--vehicle', default=2)
+
+
+def parse_model(model_name: str, folder: str = '../data', version: str = 'v1') \
+        -> Tuple[tf.keras.models.Sequential, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Parsing the model name and training/validation data
 
     :param model_name: The model name
+    :param folder: location of the data folder
+    :param version: Version of the beam output
     :return: tensorflow model, training input and output, validation input and output
     """
     # Load the training and validation datasets
-    train_lidar_data = np.transpose(np.expand_dims(lidar_to_2d('../data/lidar_train.npz'), 1), (0, 2, 3, 1))
-    train_coord_data = np.load('../data/coord_train.npz')['coordinates']
-    train_image_data = np.load('../data/img_input_train_20.npz')['inputs']
-    training_beam_output = beam_output('../data/beams_output_train.npz')
+    train_lidar_data = np.transpose(np.expand_dims(lidar_to_2d(f'{folder}/lidar_train.npz'), 1), (0, 2, 3, 1))
+    val_lidar_data = np.transpose(np.expand_dims(lidar_to_2d(f'{folder}/lidar_validation.npz'), 1), (0, 2, 3, 1))
 
-    val_lidar_data = np.transpose(np.expand_dims(lidar_to_2d('../data/lidar_validation.npz'), 1), (0, 2, 3, 1))
-    val_coord_data = np.load('../data/coord_validation.npz')['coordinates']
-    val_image_data = np.load('../data/img_input_validation_20.npz')['inputs']
-    validation_beam_output = beam_output('../data/beams_output_validation.npz')
+    train_coord_data = np.load(f'{folder}/coord_train.npz')['coordinates']
+    val_coord_data = np.load(f'{folder}/coord_validation.npz')['coordinates']
+
+    train_image_data = np.load(f'{folder}/img_input_train_20.npz')['inputs']
+    val_image_data = np.load(f'{folder}/img_input_validation_20.npz')['inputs']
+
+    if version == 'v1':
+        training_beam_output = beam_outputs(f'{folder}/beams_output_train.npz')
+        validation_beam_output = beam_outputs(f'{folder}/beams_output_validation.npz')
+    elif version == 'v2':
+        training_beam_output = beam_outputs_v2(f'{folder}/beam_output_train.npz')
+        validation_beam_output = beam_outputs_v2(f'{folder}/beams_output_validation.npz')
+    else:
+        raise Exception(f'Unknown version: {version}')
 
     coord, lidar = (train_coord_data, val_coord_data), (train_lidar_data, val_lidar_data)
     image = (train_image_data, val_image_data)
@@ -33,24 +60,26 @@ def parse_model(model_name: str) -> Tuple[tf.keras.models.Sequential, np.ndarray
                         (val_coord_data, val_lidar_data, val_image_data)
 
     possible_models = {
-        'imperial': (imperial_model, lidar),
+        'imperial': (imperial_model_fn, lidar),
 
-        'beamsoup-coord': (beamsoup_coord_model, coord),
-        'beamsoup-lidar': (beamsoup_lidar_model, lidar),
-        'beamsoup-joint': (beamsoup_joint_model, coord_lidar),
+        'beamsoup-coord': (beamsoup_coord_model_fn, coord),
+        'beamsoup-lidar': (beamsoup_lidar_model_fn, lidar),
+        'beamsoup-joint': (beamsoup_joint_model_fn, coord_lidar),
 
-        'husky-coord': (husky_coord_model, coord),
-        'husky-lidar': (husky_lidar_model, lidar),
-        'husky-image': (husky_image_model, image),
-        'husky-fusion': (husky_fusion_model, coord_lidar_image),
+        'husky-coord': (nu_husky_coord_model_fn, coord),
+        'husky-lidar': (nu_husky_lidar_model_fn, lidar),
+        'husky-image': (nu_husky_image_model_fn, image),
+        'husky-fusion': (nu_husky_fusion_model_fn, coord_lidar_image),
 
         # Baseline specifications provided by NU Husky are wrong and tensorflow throws an error.
         #   Unable to find the correct specifications
-        # 'baseline-coord': (baseline_coord_model, coord),
-        # 'baseline-lidar': (baseline_lidar_model, lidar),
-        # 'baseline-image': (baseline_image_model, image),
-        # 'baseline-fusion': (baseline_fusion_model, coord_lidar_image)
+        'baseline-coord': (baseline_coord_model_fn, coord),
+        'baseline-lidar': (baseline_lidar_model_fn, lidar),
+        'baseline-image': (baseline_image_model_fn, image),
+        'baseline-fusion': (baseline_fusion_model_fn, coord_lidar_image),
+
+        'southampton': (southampton_model_fn, coord_lidar)
     }
 
-    model, (train_input, val_input) = possible_models[model_name]
-    return model, train_input, training_beam_output, val_input, validation_beam_output
+    model_fn, (train_input, val_input) = possible_models[model_name]
+    return model_fn, train_input, training_beam_output, val_input, validation_beam_output

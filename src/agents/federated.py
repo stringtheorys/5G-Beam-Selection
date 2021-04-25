@@ -1,4 +1,5 @@
 import json
+from typing import Callable
 
 import tensorflow as tf
 from tqdm import tqdm
@@ -7,7 +8,7 @@ from core.metrics import TopKThroughputRatio, top_k_metrics
 from core.training import training_step, validation_step
 
 
-def federated_training(name: str, model_fn, num_vehicles: int,
+def federated_training(name: str, model_fn: Callable[[], tf.keras.models.Model], num_vehicles: int,
                        training_input, training_output, validation_input, validation_output,
                        epochs=15, batch_size=16):
     """
@@ -25,6 +26,7 @@ def federated_training(name: str, model_fn, num_vehicles: int,
     """
     # Loss and optimiser for the each vehicle model
     loss_fn = tf.keras.losses.CategoricalCrossentropy()
+    global_optimiser = tf.keras.optimizers.SGD(lr=0.025)
     vehicle_optimisers = [tf.keras.optimizers.Adam() for _ in range(num_vehicles)]
 
     # Vehicle and global models
@@ -76,7 +78,8 @@ def federated_training(name: str, model_fn, num_vehicles: int,
             epoch_results[f'vehicle {vehicle_id}'] = vehicle_result
 
         # Add the each of the vehicle results to the global model
-        global_model.set_weight(tf.reduce_mean([model for model in vehicle_models]))
+        avg_weights = tf.reduce_mean([model.get_weights() for model in vehicle_models])
+        global_optimiser.apply_gradients(zip(global_model.trainable_variables, avg_weights))
         
         # Validation of the global model
         validation_step(global_model, validation_input, validation_output)
@@ -88,11 +91,11 @@ def federated_training(name: str, model_fn, num_vehicles: int,
 
         # Add the epoch results to the history
         history.append(epoch_results)
-    global_model.save_weights(f'../results/models/federated-{name}/model')
+    global_model.save_weights(f'../results/models/federated-{num_vehicles}-{name}/model')
 
     # Top K metrics
     top_k_accuracy, top_k_throughput_ratio = top_k_metrics(global_model, validation_input, validation_output)
-    with open(f'../results/federated-{name}-eval.json', 'w') as file:
+    with open(f'../results/federated-{num_vehicles}-{name}-eval.json', 'w') as file:
         json.dump({'top-k-accuracy': top_k_accuracy, 'top-k-throughput-ratio': top_k_throughput_ratio,
                    'history': history}, file)
 

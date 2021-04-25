@@ -42,7 +42,8 @@ def start(args):
         print(f'Using training type: {training_type} and model type: {model_type}')
 
         # Parse and generate the model then tell the server that it is ready to start training
-        model, training_input, training_output, validation_input, validation_output = parse_model(model_type)
+        model_fn, training_input, training_output, validation_input, validation_output = parse_model(model_type)
+        model = model_fn()
         model_size = len(dumps(model.get_weights()))
         samples_size = len(dumps(tf.range(args.batch_size)))
         optimiser = tf.keras.optimizers.Adam()
