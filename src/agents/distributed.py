@@ -11,7 +11,7 @@ from core.metrics import top_k_metrics, TopKThroughputRatio
 from core.training import training_step, validation_step
 
 
-def distributed_training(name, model, training_input, training_output, validation_input, validation_output,
+def distributed_training(name, model, training_input, validation_input, training_output, validation_output,
                          epochs=15, batch_size=16):
     """
     Custom distributed training with a centralised dataset

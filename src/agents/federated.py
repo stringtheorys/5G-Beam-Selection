@@ -9,7 +9,7 @@ from core.training import training_step, validation_step
 
 
 def federated_training(name: str, model_fn: Callable[[], tf.keras.models.Model], num_vehicles: int,
-                       training_input, training_output, validation_input, validation_output,
+                       training_input, validation_input, training_output, validation_output,
                        epochs=15, batch_size=16):
     """
     Custom federated training

@@ -11,7 +11,7 @@ from core.metrics import top_k_metrics, TopKThroughputRatio
 
 
 def centralised_training(name: str, model: tf.keras.models.Sequential,
-                         training_input, training_output, validation_input, validation_output, epochs=15):
+                         training_input, validation_input, training_output, validation_output, epochs=15):
     # Loss and optimiser for the model
     loss = tf.keras.losses.CategoricalCrossentropy()
     optimiser = tf.keras.optimizers.Adam()

@@ -1,4 +1,3 @@
-
 import numpy as np
 
 
@@ -69,3 +68,37 @@ def beam_outputs_v2(beam_filename: str):
     """
     beam_matrix = np.real(np.load(beam_filename)['output_classification']).reshape((-1, 256))
     return beam_matrix / beam_matrix.sum()
+
+
+def output_dataset(folder: str = '../data', version: str = 'v1'):
+    if version == 'v1':
+        return (beam_outputs(f'{folder}/beams_output_train.npz'),
+                beam_outputs(f'{folder}/beams_output_validation.npz'))
+    elif version == 'v2':
+        return (beam_outputs_v2(f'{folder}/beams_output_train.npz'),
+                beam_outputs_v2(f'{folder}/beams_output_validation.npz'))
+    else:
+        raise Exception(f'Unknown version: {version}')
+
+
+def coord_dataset(folder: str = '../data'):
+    return (np.load(f'{folder}/coord_train.npz')['coordinates'],
+            np.load(f'{folder}/coord_validation.npz')['coordinates'])
+
+
+def lidar_dataset(folder: str = '../data'):
+    return (np.transpose(np.expand_dims(lidar_to_2d(f'{folder}/lidar_train.npz'), 1), (0, 2, 3, 1)),
+            np.transpose(np.expand_dims(lidar_to_2d(f'{folder}/lidar_validation.npz'), 1), (0, 2, 3, 1)))
+
+
+def image_dataset(folder: str = '../data'):
+    return (np.load(f'{folder}/img_input_train_20.npz')['inputs'],
+            np.load(f'{folder}/img_input_validation_20.npz')['inputs'])
+
+
+def coord_lidar_dataset(folder: str = '../data'):
+    return [data for data in zip(coord_dataset(folder), lidar_dataset(folder))]
+
+
+def coord_lidar_image_dataset(folder: str = '../data'):
+    return [data for data in zip(coord_dataset(folder), lidar_dataset(folder), image_dataset(folder))]

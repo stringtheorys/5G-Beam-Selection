@@ -32,7 +32,8 @@ class TopKThroughputRatio(MeanMetricWrapper):
     def __init__(self, k, name):
         MeanMetricWrapper.__init__(self, self.throughput, name, k=k)
 
-    def throughput(self, y_true, y_pred, k):
+    @staticmethod
+    def throughput(y_true, y_pred, k):
         """
         Finds the throughput ratio of the top k beams compared to the optimal beam
             Algorithm works by

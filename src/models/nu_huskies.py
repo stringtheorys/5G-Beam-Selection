@@ -47,11 +47,12 @@ def _lidar_model(input_shape=(20, 200, 1), channel=32, drop_prob=0.2):
 
 
 def _image_model(channel=32, drop_prob=0.25):
-    _input_layer = tf.keras.layers.Input(shape=(9234, 48, 81))
+    _input_layer = tf.keras.layers.Input(shape=(48, 81, 1))
     _image_layer = tf.keras.layers.concatenate([
         tf.keras.layers.Conv2D(channel, activation='relu', padding='same', kernel_size=(3, 3))(_input_layer),
         tf.keras.layers.Conv2D(channel, activation='relu', padding='same', kernel_size=(7, 7))(_input_layer),
-        tf.keras.layers.Conv2D(channel, activation='relu', padding='same', kernel_size=(11, 11))(_input_layer)])
+        tf.keras.layers.Conv2D(channel, activation='relu', padding='same', kernel_size=(11, 11))(_input_layer)
+    ])
 
     _image_layer = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(_image_layer)
     _image_layer = tf.keras.layers.Dropout(drop_prob)(_image_layer)
@@ -95,4 +96,4 @@ def nu_husky_fusion_model_fn():
 
     layer = tf.keras.layers.Dense(512, activation='relu')(concat_layer)
     output_layer = tf.keras.layers.Dense(256, activation='softmax')(layer)
-    return tf.keras.models.Model(inputs=[coord_input, image_input, lidar_input], outputs=output_layer)
+    return tf.keras.models.Model(inputs=[coord_input, lidar_input, image_input], outputs=output_layer)

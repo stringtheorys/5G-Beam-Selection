@@ -12,11 +12,12 @@ from pickle import dumps, loads
 
 import tensorflow as tf
 
-from core.io import parse_model
 
 # Script argument parser with a range of argument types: training, model, epochs, host, port and batch-size
+from models import models
+
 parser = argparse.ArgumentParser()
-parser.add_argument('-a', '--agent') # Ignore
+parser.add_argument('-a', '--agent')  # Ignore
 parser.add_argument('-t', '--training', default='distributed', choices=['centralised', 'distributed', 'federated'])
 parser.add_argument('-m', '--model', default='imperial')  # Add choices
 parser.add_argument('-e', '--epochs', default=1000)
@@ -38,13 +39,13 @@ def start(args):
         print(f'[+] Connection accepted - {addr}')
 
         # Parse the selected model, determine the model size and initialise the optimiser
-        model_fn, *train_validation_data = parse_model(args.model)
+        model_fn, dataset_fn = models[args.model]
         model = model_fn()
         model_size = len(dumps(model.get_weights()))
         optimiser = tf.keras.optimizers.Adam()
 
         # Generate the training dataset for the centralised training method
-        dataset = tf.data.Dataset.from_tensor_slices(tf.range(0, len(train_validation_data[3])))
+        dataset = tf.data.Dataset.from_tensor_slices(tf.range(0, len(dataset_fn()[0])))
         dataset = dataset.shuffle(args.batch_size).repeat(args.epoches).batch(args.batch_size)
         dataset = dataset.make_one_shot_iterator()
 

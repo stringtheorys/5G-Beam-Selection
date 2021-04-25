@@ -9,9 +9,10 @@ from pickle import dumps, loads
 
 import tensorflow as tf
 
-from core.io import parse_model
-
 # Script argument parser with the server host and port
+from core.dataset import output_dataset
+from models import models
+
 parser = argparse.ArgumentParser()
 parser.add_argument('-a', '--agent')  # Ignore
 parser.add_argument('-m', '--model')  # Ignore
@@ -41,9 +42,13 @@ def start(args):
         training_type, model_type = data[0].replace('training: ', ''), data[1].replace('model: ', '')
         print(f'Using training type: {training_type} and model type: {model_type}')
 
-        # Parse and generate the model then tell the server that it is ready to start training
-        model_fn, training_input, training_output, validation_input, validation_output = parse_model(model_type)
+        # Get the model information
+        model_fn, dataset_fn = models[model_type]
         model = model_fn()
+        training_input, validation_input = dataset_fn()
+        training_output, validation_output = output_dataset()
+
+        # Parse and generate the model then tell the server that it is ready to start training
         model_size = len(dumps(model.get_weights()))
         samples_size = len(dumps(tf.range(args.batch_size)))
         optimiser = tf.keras.optimizers.Adam()
