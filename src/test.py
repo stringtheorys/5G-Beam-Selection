@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from core.dataset import beam_outputs, beams_log_scale
+from models import models
 
 
 def testing_beam_output():
@@ -31,3 +32,18 @@ def testing_beam_output():
     axs[1, 2].set_title('Imperial solution')
 
     plt.show()
+
+
+def test_models():
+    for name, (model_fn, dataset_fn) in models.items():
+        print(name)
+        try:
+            model = model_fn()
+            _, validation_input = dataset_fn()
+            model(validation_input)
+        except Exception as e:
+            print(e)
+
+
+if __name__ == '__main__':
+    test_models()
