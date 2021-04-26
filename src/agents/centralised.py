@@ -5,13 +5,27 @@ Training for a centralised version of the beam alignment agent
 import datetime
 import json
 
+import numpy as np
 import tensorflow as tf
 
 from core.metrics import top_k_metrics, TopKThroughputRatio
 
 
 def centralised_training(name: str, model: tf.keras.models.Sequential,
-                         training_input, validation_input, training_output, validation_output, epochs=15):
+                         training_input: np.ndarray, validation_input: np.ndarray,
+                         training_output: np.ndarray, validation_output: np.ndarray, epochs=15):
+    """
+    Centralised training agent
+
+    :param name: model name
+    :param model: tensorflow model
+    :param training_input: numpy matrix for the training input
+    :param validation_input: numpy matrix for the validation input
+    :param training_output: numpy matrix for the training output
+    :param validation_output: numpy matrix for the validation output
+    :param epochs: number of epochs the mode.fit function will run for
+    """
+    print(f'Centralised training for {name}')
     # Loss and optimiser for the model
     loss = tf.keras.losses.CategoricalCrossentropy()
     optimiser = tf.keras.optimizers.Adam()

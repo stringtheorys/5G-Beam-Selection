@@ -24,6 +24,7 @@ def federated_training(name: str, model_fn: Callable[[], tf.keras.models.Model],
     :param epochs: number of epochs
     :param batch_size: batch training size
     """
+    print(f'Federated learning for {name}')
     # Loss and optimiser for the each vehicle model
     loss_fn = tf.keras.losses.CategoricalCrossentropy()
     global_optimiser = tf.keras.optimizers.SGD(lr=0.025)

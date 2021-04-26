@@ -25,6 +25,7 @@ def distributed_training(name, model, training_input, validation_input, training
     :param epochs: number of epochs
     :param batch_size: batch training size
     """
+    print(f'Distributed training for {name}')
     # Loss and optimiser for the model
     loss_fn = tf.keras.losses.CategoricalCrossentropy()
     optimiser = tf.keras.optimizers.Adam()
