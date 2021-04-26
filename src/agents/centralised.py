@@ -31,7 +31,7 @@ def centralised_training(name: str, model: tf.keras.models.Sequential,
 
     # Train the model, change the epochs value for the number of training rounds
     history = model.fit(x=training_input, y=training_output, batch_size=16,  callbacks=tensorboard_callback,
-                        validation_data=(validation_input, validation_output), epochs=epochs)
+                        validation_data=(validation_input, validation_output), epochs=epochs, verbose=2)
     model.save_weights(f'../results/models/centralised-{name}/model')
 
     # Top K metrics
