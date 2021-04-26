@@ -7,7 +7,7 @@
 
 module load conda
 source activate 5GBeamAlignment
-pip install tensorflow
+echo -e "import sys\nprint(sys.version)\nimport tensorflow as tf" | python
 
 module load cuda/11.0
 
