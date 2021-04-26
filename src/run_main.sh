@@ -6,9 +6,8 @@
 #SBATCH --nodes=1
 
 module load conda
-# conda create -n 5GBeamAlignment python=3.6
-# pip install tensorflow
-conda activate 5GBeamAlignment
+source activate 5GBeamAlignment
+pip install tensorflow
 
 module load cuda/11.0
 
