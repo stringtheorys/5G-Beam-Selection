@@ -1,5 +1,7 @@
 import argparse
 
+import tensorflow as tf
+
 from agents.centralised import centralised_training
 from agents.distributed import distributed_training
 from agents.federated import federated_training
@@ -11,8 +13,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-a', '--agent', default='centralised',
                     choices=['centralised', 'distributed', 'federated', 'southampton', 'basestation', 'jetson'])
 parser.add_argument('-m', '--model', default='imperial', choices=models.keys())
-parser.add_argument('-v', '--vehicle', default=2)
-
+parser.add_argument('-v', '--vehicles', default=2)
 
 if __name__ == '__main__':
     args = parser.parse_args()
@@ -30,8 +31,9 @@ if __name__ == '__main__':
         elif args.agent == 'distributed':
             distributed_training(args.model, model_fn(), *dataset_fn(), *output_dataset())
         elif args.agent == 'federated':
-            federated_training(args.model, model_fn, *dataset_fn(), *output_dataset())
+            federated_training(args.model, model_fn, int(args.vehicles), *dataset_fn(), *output_dataset())
         elif args.agent == 'southampton':
-            centralised_training(args.model + '_v2', model_fn(), *dataset_fn(), *output_dataset(version='v2'))
+            centralised_training(f'{args.model}-v2', model_fn(), *dataset_fn(), *output_dataset(version='v2'),
+                                 loss_fn=tf.keras.losses.MeanSquaredError())
         else:
             raise Exception(f'Unknown agent type: {args.agent}')

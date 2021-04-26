@@ -18,17 +18,17 @@ def training_step(model, x, y, loss_fn, optimiser, metrics):
     # Model prediction
     with tf.GradientTape() as tape:
         predicted = model(x, training=True)
-        error = loss_fn(predicted, y)
+        loss = loss_fn(predicted, y)
 
     # Backpropagation
-    gradients = tape.gradient(error, model.trainable_variables)
+    gradients = tape.gradient(loss, model.trainable_variables)
     optimiser.apply_gradients(zip(gradients, model.trainable_variables))
 
     # Update the metrics for the training
     for metric in metrics:
         metric.update_state(y, predicted)
 
-    return error
+    return loss
 
 
 @tf.function

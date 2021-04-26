@@ -4,6 +4,7 @@ Training for a centralised version of the beam alignment agent
 
 import datetime
 import json
+import os
 
 import numpy as np
 import tensorflow as tf
@@ -13,7 +14,8 @@ from core.metrics import top_k_metrics, TopKThroughputRatio
 
 def centralised_training(name: str, model: tf.keras.models.Sequential,
                          training_input: np.ndarray, validation_input: np.ndarray,
-                         training_output: np.ndarray, validation_output: np.ndarray, epochs=15):
+                         training_output: np.ndarray, validation_output: np.ndarray, epochs: int = 15,
+                         loss_fn: tf.keras.losses.Loss = tf.keras.losses.CategoricalCrossentropy()):
     """
     Centralised training agent
 
@@ -24,32 +26,35 @@ def centralised_training(name: str, model: tf.keras.models.Sequential,
     :param training_output: numpy matrix for the training output
     :param validation_output: numpy matrix for the validation output
     :param epochs: number of epochs the mode.fit function will run for
+    :param loss_fn: the loss function which by default is Categorical cross entropy loss
     """
-    print(f'Centralised training for {name}')
-    # Loss and optimiser for the model
-    loss = tf.keras.losses.CategoricalCrossentropy()
-    optimiser = tf.keras.optimizers.Adam()
-
     # The accuracy and throughput metrics
-    top_1_acc = tf.keras.metrics.TopKCategoricalAccuracy(k=1, name='top-1-accuracy')
-    top_10_acc = tf.keras.metrics.TopKCategoricalAccuracy(k=10, name='top-10-accuracy')
-    top_1_throughput = TopKThroughputRatio(k=1, name='top-1-throughput')
-    top_10_throughput = TopKThroughputRatio(k=10, name='top-10-throughput')
+    metrics = [
+        tf.keras.metrics.TopKCategoricalAccuracy(k=1, name='top-1-accuracy'),
+        tf.keras.metrics.TopKCategoricalAccuracy(k=10, name='top-10-accuracy'),
+        TopKThroughputRatio(k=1, name='top-1-throughput'),
+        TopKThroughputRatio(k=10, name='top-10-throughput')
+    ]
 
     # Adds callbacks over the epochs (through this is saved in the eval.json file)
     log_dir = f'../results/logs/{name}/{datetime.datetime.now().strftime("%Y%m%d-%H%M%S")}'
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
 
     # Compile the model with the optimiser, loss and metrics
-    model.compile(optimizer=optimiser, loss=loss, metrics=[top_1_acc, top_10_acc, top_1_throughput, top_10_throughput])
+    model.compile(optimizer=tf.keras.optimizers.Adam(), loss=loss_fn, metrics=metrics)
 
     # Train the model, change the epochs value for the number of training rounds
     history = model.fit(x=training_input, y=training_output, batch_size=16,  callbacks=tensorboard_callback,
                         validation_data=(validation_input, validation_output), epochs=epochs, verbose=2)
-    model.save_weights(f'../results/models/centralised-{name}/model')
+
+    # Save the model
+    if os.path.exists(f'../results/models/centralised-{name}'):
+        os.remove(f'../results/models/centralised-{name}')
+    os.mkdir(f'../results/models/centralised-{name}')
+    model.save(f'../results/models/centralised-{name}/model')
 
     # Top K metrics
     top_k_accuracy, top_k_throughput_ratio = top_k_metrics(model, validation_input, validation_output)
     with open(f'../results/centralised-{name}-eval.json', 'w') as file:
         json.dump({'top-k-accuracy': top_k_accuracy, 'top-k-throughput-ratio': top_k_throughput_ratio,
-                   'history': {key: [int(val) for val in vals] for key, vals in history.history.items()}}, file)
+                   'history': {key: [map(int, values)] for key, values in history.history.items()}}, file)

@@ -1,16 +1,18 @@
 import json
+import os
 from typing import Callable
 
 import tensorflow as tf
 from tqdm import tqdm
+import numpy as np
 
 from core.metrics import TopKThroughputRatio, top_k_metrics
-from core.training import training_step, validation_step
+from core.training import validation_step
 
 
 def federated_training(name: str, model_fn: Callable[[], tf.keras.models.Model], num_vehicles: int,
                        training_input, validation_input, training_output, validation_output,
-                       epochs=15, batch_size=16):
+                       epochs=15, loss_fn: tf.keras.losses.Loss = tf.keras.losses.CategoricalCrossentropy()):
     """
     Custom federated training
 
@@ -22,65 +24,46 @@ def federated_training(name: str, model_fn: Callable[[], tf.keras.models.Model],
     :param validation_input: validation input dataset
     :param validation_output: validation output dataset
     :param epochs: number of epochs
-    :param batch_size: batch training size
+    :param loss_fn: the loss function
     """
-    print(f'Federated learning for {name}')
-    # Loss and optimiser for the each vehicle model
-    loss_fn = tf.keras.losses.CategoricalCrossentropy()
+    # The global model and optimiser
+    global_model = model_fn()
     global_optimiser = tf.keras.optimizers.SGD(lr=0.025)
-    vehicle_optimisers = [tf.keras.optimizers.Adam() for _ in range(num_vehicles)]
 
     # Vehicle and global models
-    global_model = model_fn()
     vehicle_models = [model_fn() for _ in range(num_vehicles)]
-
-    # Generate the training datasets
-    vehicle_training_dataset = tf.data.Dataset.from_tensor_slices((training_input, training_output))
-    vehicle_training_dataset = tf.split(vehicle_training_dataset, num_split=num_vehicles)  # maybe change the axis=-1
-    vehicle_training_dataset = [dataset.shuffle(buffer_size=512).batch(batch_size)
-                                for dataset in vehicle_training_dataset]
-
-    # Vehicle metrics
-    loss_metric = tf.keras.metrics.Mean(name=f'loss')
     metrics = [
         tf.keras.metrics.TopKCategoricalAccuracy(k=1, name='top-1-accuracy'),
         tf.keras.metrics.TopKCategoricalAccuracy(k=10, name='top-10-accuracy'),
         TopKThroughputRatio(k=1, name='top-1-throughput'),
         TopKThroughputRatio(k=10, name='top-10-throughput')
     ]
+    for vehicle_model in vehicle_models:
+        vehicle_model.compile(optimizer=tf.keras.optimizers.Adam(), loss=loss_fn, metrics=metrics)
+
+    # Generate the training datasets
+    vehicle_training_dataset = [
+        (inputs, outputs) for inputs, outputs in zip(tf.split(training_input, 3), tf.split(training_output, 3))
+    ]
 
     # Save the metric history over training steps
     history = []
-    for epochs in tqdm(epochs):
+    for epochs in tqdm(range(epochs)):
         print(f'Epochs: {epochs}')
         epoch_results = {}
-        for vehicle_id in range(num_vehicles):
-            for training_x, training_y in vehicle_training_dataset[vehicle_id]:
-                loss = training_step(vehicle_models[vehicle_id], training_x, training_y, loss_fn,
-                                     vehicle_optimisers[vehicle_id], metrics)
-                loss_metric[vehicle_id].update_state(loss)
+        for vehicle_id, vehicle_model in enumerate(vehicle_models):
+            vehicle_history = vehicle_model.fit(*vehicle_training_dataset[vehicle_id], batch_size=16, verbose=2,
+                                                validation_data=(validation_input, validation_output)).history
 
-            # Vehicle results
-            vehicle_result = {'loss': float(loss_metric.result().numpy())}
-            loss_metric.reset_states()
-
-            # Training metrics for the vehicle
-            for metric in metrics:
-                vehicle_result[f'training-{metric.name}'] = float(metric.result().numpy())
-                metric.reset_states()
-
-            # Validation metrics for the vehicle
-            validation_step(vehicle_models[vehicle_id], validation_input, validation_output, metrics)
-            for metric in metrics:
-                vehicle_result[f'validation-{metric.name}'] = float(metric.result().numpy())
-                metric.reset_states()
-
-            print(f'\tVehicle id: {vehicle_id} - {vehicle_result}')
-            epoch_results[f'vehicle {vehicle_id}'] = vehicle_result
+            print(f'\tVehicle id: {vehicle_id} - {vehicle_history}')
+            epoch_results[f'vehicle {vehicle_id}'] = {key: [map(int, vals)] for key, vals in vehicle_history.items()}
+            [metric.reset_states() for metric in metrics]
 
         # Add the each of the vehicle results to the global model
-        avg_weights = tf.reduce_mean([model.get_weights() for model in vehicle_models])
-        global_optimiser.apply_gradients(zip(global_model.trainable_variables, avg_weights))
+        vehicle_weights = [model.get_weights() for model in vehicle_models]
+        avg_weights = [[np.array(weights).mean(axis=0) for weights in zip(*vehicle_layer)]
+                       for vehicle_layer in zip(*vehicle_weights)]
+        global_optimiser.apply_gradients(zip(avg_weights, global_model.trainable_variables))
         
         # Validation of the global model
         validation_step(global_model, validation_input, validation_output)
@@ -92,11 +75,17 @@ def federated_training(name: str, model_fn: Callable[[], tf.keras.models.Model],
 
         # Add the epoch results to the history
         history.append(epoch_results)
-    global_model.save_weights(f'../results/models/federated-{num_vehicles}-{name}/model')
+
+    # Save all of the models
+    if os.path.exists(f'../results/models/federated-{num_vehicles}-{name}'):
+        os.remove(f'../results/models/federated-{num_vehicles}-{name}')
+    os.mkdir(f'../results/models/federated-{num_vehicles}-{name}')
+    for vehicle_id, vehicle_model in enumerate(vehicle_models):
+        vehicle_model.save(f'../results/models/federated-{num_vehicles}-{name}/vehicle-{vehicle_id}-model/model')
+    global_model.save(f'../results/models/federated-{num_vehicles}-{name}/global-model/model')
 
     # Top K metrics
     top_k_accuracy, top_k_throughput_ratio = top_k_metrics(global_model, validation_input, validation_output)
     with open(f'../results/federated-{num_vehicles}-{name}-eval.json', 'w') as file:
         json.dump({'top-k-accuracy': top_k_accuracy, 'top-k-throughput-ratio': top_k_throughput_ratio,
                    'history': history}, file)
-

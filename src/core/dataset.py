@@ -67,7 +67,7 @@ def beam_outputs_v2(beam_filename: str):
     :return: normalised beam output
     """
     beam_matrix = np.real(np.load(beam_filename)['output_classification']).reshape((-1, 256))
-    return beam_matrix / beam_matrix.sum()
+    return (beam_matrix.T / beam_matrix.sum(axis=1)).T
 
 
 def output_dataset(folder: str = '../data', version: str = 'v1'):

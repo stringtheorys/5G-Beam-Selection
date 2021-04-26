@@ -2,7 +2,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from core.dataset import beam_outputs, beams_log_scale
+from core.dataset import beam_outputs, beams_log_scale, output_dataset, beam_outputs_v2
 from models import models
 
 
@@ -52,5 +52,23 @@ def test_models():
             print(e)
 
 
+def test_beam_output_v2():
+    model_fn, dataset_fn = models['imperial']
+    model = model_fn()
+    model.load_weights('../results/models/centralised-imperial-v2/model')
+    _, validation_input = dataset_fn()
+    _, validation_output = output_dataset(version='v2')
+
+    fig, axs = plt.subplots(3, 3, figsize=(10, 10))
+    for ax in axs.flatten():
+        pos = np.random.randint(0, len(validation_input)-1)
+        ax.set_title(f'Pos: {pos}')
+        ax.plot(np.arange(256), validation_output[pos], label='True')
+        # ax.plot(np.arange(256), model(np.array([validation_input[pos]]))[0], label='Predicted')
+    axs[0, 0].legend()
+    plt.show()
+
+
 if __name__ == '__main__':
-    test_beam_output()
+    # test_beam_output()
+    test_beam_output_v2()

@@ -3,6 +3,7 @@ Testing file for training of centralised beam alignment agent
 """
 
 import json
+import os
 
 import tensorflow as tf
 from tqdm import tqdm
@@ -25,7 +26,6 @@ def distributed_training(name, model, training_input, validation_input, training
     :param epochs: number of epochs
     :param batch_size: batch training size
     """
-    print(f'Distributed training for {name}')
     # Loss and optimiser for the model
     loss_fn = tf.keras.losses.CategoricalCrossentropy()
     optimiser = tf.keras.optimizers.Adam()
@@ -68,7 +68,12 @@ def distributed_training(name, model, training_input, validation_input, training
 
         print(f'Epoch: {epoch} - {epoch_results}')
         history.append(epoch_results)
-    model.save_weights(f'../results/models/distributed-{name}/model')
+
+    # Save the model
+    if os.path.exists(f'../results/models/distributed-{name}'):
+        os.remove(f'../results/models/distributed-{name}')
+    os.mkdir(f'../results/models/distributed-{name}')
+    model.save(f'../results/models/distributed-{name}/model')
 
     # Top K metrics
     top_k_accuracy, top_k_throughput_ratio = top_k_metrics(model, validation_input, validation_output)
