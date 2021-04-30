@@ -23,6 +23,3 @@ python main.py --agent centralised --model beamsoup-joint
 python main.py --agent centralised --model husky-fusion
 
 python main.py --agent centralised --model southampton
-
-python main.py --agent southampton --model imperial
-python main.py --agent southampton --model southampton
