@@ -27,9 +27,9 @@ if __name__ == '__main__':
         model_fn, dataset_fn = models[args.model]
 
         if args.agent == 'centralised':
-            centralised_training(args.model, model_fn(), *dataset_fn(), *output_dataset())
+            centralised_training(args.model, model_fn(), *dataset_fn(), *output_dataset(), epochs=30)
         elif args.agent == 'distributed':
-            distributed_training(args.model, model_fn(), *dataset_fn(), *output_dataset())
+            distributed_training(args.model, model_fn(), *dataset_fn(), *output_dataset(), epochs=30)
         elif args.agent == 'federated':
             federated_training(args.model, model_fn, int(args.vehicles), *dataset_fn(), *output_dataset())
         elif args.agent == 'southampton':

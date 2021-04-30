@@ -26,8 +26,3 @@ python main.py --agent centralised --model southampton
 
 python main.py --agent southampton --model imperial
 python main.py --agent southampton --model southampton
-
-python main.py --agent federated --model imperial
-python main.py --agent federated --model beamsoup-coord
-python main.py --agent distributed --model imperial
-python main.py --agent distributed --model beamsoup-coord
