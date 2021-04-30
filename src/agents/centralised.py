@@ -55,6 +55,6 @@ def centralised_training(name: str, model: tf.keras.models.Sequential,
 
     # Top K metrics
     top_k_accuracy, top_k_throughput_ratio = top_k_metrics(model, validation_input, validation_output)
-    with open(f'../results/centralised-{name}-eval.json', 'w') as file:
+    with open(f'../results/eval/centralised-{name}.json', 'w') as file:
         json.dump({'top-k-accuracy': top_k_accuracy, 'top-k-throughput-ratio': top_k_throughput_ratio,
-                   'history': {key: [map(int, values)] for key, values in history.history.items()}}, file)
+                   'history': {key: [list(map(int, values))] for key, values in history.history.items()}}, file)

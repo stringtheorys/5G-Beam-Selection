@@ -2,9 +2,9 @@ import json
 import os
 from typing import Callable
 
+import numpy as np
 import tensorflow as tf
 from tqdm import tqdm
-import numpy as np
 
 from core.metrics import TopKThroughputRatio, top_k_metrics
 from core.training import validation_step
@@ -56,15 +56,17 @@ def federated_training(name: str, model_fn: Callable[[], tf.keras.models.Model],
                                                 validation_data=(validation_input, validation_output)).history
 
             print(f'\tVehicle id: {vehicle_id} - {vehicle_history}')
-            epoch_results[f'vehicle {vehicle_id}'] = {key: [map(int, vals)] for key, vals in vehicle_history.items()}
+            epoch_results[f'vehicle {vehicle_id}'] = {key: [list(map(int, vals))]
+                                                      for key, vals in vehicle_history.items()}
             [metric.reset_states() for metric in metrics]
 
         # Add the each of the vehicle results to the global model
         vehicle_weights = [model.get_weights() for model in vehicle_models]
         avg_weights = [[np.array(weights).mean(axis=0) for weights in zip(*vehicle_layer)]
                        for vehicle_layer in zip(*vehicle_weights)]
-        global_optimiser.apply_gradients(zip(avg_weights, global_model.trainable_variables))
-        
+        global_model.set_weights(avg_weights)
+        # global_optimiser.apply_gradients(zip(avg_weights, global_model.trainable_variables))
+
         # Validation of the global model
         validation_step(global_model, validation_input, validation_output)
         global_results = {}
@@ -86,6 +88,6 @@ def federated_training(name: str, model_fn: Callable[[], tf.keras.models.Model],
 
     # Top K metrics
     top_k_accuracy, top_k_throughput_ratio = top_k_metrics(global_model, validation_input, validation_output)
-    with open(f'../results/federated-{num_vehicles}-{name}-eval.json', 'w') as file:
+    with open(f'../results/eval/federated-{num_vehicles}-{name}.json', 'w') as file:
         json.dump({'top-k-accuracy': top_k_accuracy, 'top-k-throughput-ratio': top_k_throughput_ratio,
                    'history': history}, file)

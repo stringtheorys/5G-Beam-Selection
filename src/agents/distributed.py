@@ -77,6 +77,6 @@ def distributed_training(name, model, training_input, validation_input, training
 
     # Top K metrics
     top_k_accuracy, top_k_throughput_ratio = top_k_metrics(model, validation_input, validation_output)
-    with open(f'../results/distributed-{name}-eval.json', 'w') as file:
+    with open(f'../results/eval/distributed-{name}.json', 'w') as file:
         json.dump({'top-k-accuracy': top_k_accuracy, 'top-k-throughput-ratio': top_k_throughput_ratio,
                    'history': history}, file)
