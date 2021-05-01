@@ -2,7 +2,6 @@ import json
 import os
 from typing import Callable
 
-import numpy as np
 import tensorflow as tf
 from tqdm import tqdm
 
@@ -26,24 +25,28 @@ def federated_training(name: str, model_fn: Callable[[], tf.keras.models.Model],
     :param epochs: number of epochs
     :param loss_fn: the loss function
     """
-    # The global model and optimiser
+    # The global and vehicle models
     global_model = model_fn()
-    global_optimiser = tf.keras.optimizers.SGD(lr=0.025)
-
-    # Vehicle and global models
     vehicle_models = [model_fn() for _ in range(num_vehicles)]
+    [model.set_weights(global_model.get_weights()) for model in vehicle_models]
+
+    # Metrics
     metrics = [
         tf.keras.metrics.TopKCategoricalAccuracy(k=1, name='top-1-accuracy'),
         tf.keras.metrics.TopKCategoricalAccuracy(k=10, name='top-10-accuracy'),
         TopKThroughputRatio(k=1, name='top-1-throughput'),
         TopKThroughputRatio(k=10, name='top-10-throughput')
     ]
+
+    # Compile the models
+    global_model.compile(optimizer=tf.keras.optimizers.Adam())
     for vehicle_model in vehicle_models:
         vehicle_model.compile(optimizer=tf.keras.optimizers.Adam(), loss=loss_fn, metrics=metrics)
 
-    # Generate the training datasets
+    # Determine the training datasets
     vehicle_training_dataset = [
-        (inputs, outputs) for inputs, outputs in zip(tf.split(training_input, 3), tf.split(training_output, 3))
+        (inputs, outputs) for inputs, outputs in zip(tf.split(training_input, num_vehicles),
+                                                     tf.split(training_output, num_vehicles))
     ]
 
     # Save the metric history over training steps
@@ -51,21 +54,18 @@ def federated_training(name: str, model_fn: Callable[[], tf.keras.models.Model],
     for epochs in tqdm(range(epochs)):
         print(f'Epochs: {epochs}')
         epoch_results = {}
-        for vehicle_id, vehicle_model in enumerate(vehicle_models):
-            vehicle_history = vehicle_model.fit(*vehicle_training_dataset[vehicle_id], batch_size=16, verbose=2,
+        for vehicle_id, (vehicle_model, training_data) in enumerate(zip(vehicle_models, vehicle_training_dataset)):
+            vehicle_history = vehicle_model.fit(*training_data, batch_size=16, verbose=2,
                                                 validation_data=(validation_input, validation_output)).history
 
             print(f'\tVehicle id: {vehicle_id} - {vehicle_history}')
             epoch_results[f'vehicle {vehicle_id}'] = {key: [list(map(int, vals))]
                                                       for key, vals in vehicle_history.items()}
-            [metric.reset_states() for metric in metrics]
 
         # Add the each of the vehicle results to the global model
-        vehicle_weights = [model.get_weights() for model in vehicle_models]
-        avg_weights = [[np.array(weights).mean(axis=0) for weights in zip(*vehicle_layer)]
-                       for vehicle_layer in zip(*vehicle_weights)]
-        global_model.set_weights(avg_weights)
-        # global_optimiser.apply_gradients(zip(avg_weights, global_model.trainable_variables))
+        vehicle_variables = [model.trainable_variables for model in vehicle_models]
+        for global_weight, *vehicle_weights in zip(global_model.trainable_variables, *vehicle_variables):
+            global_weight.assign(sum(1 / num_vehicles * weight for weight in vehicle_weights))
 
         # Validation of the global model
         validation_step(global_model, validation_input, validation_output)
@@ -77,6 +77,9 @@ def federated_training(name: str, model_fn: Callable[[], tf.keras.models.Model],
 
         # Add the epoch results to the history
         history.append(epoch_results)
+
+        # Update all of the vehicle models to copy the global model
+        [model.set_weights(global_model.get_weights()) for model in vehicle_models]
 
     # Save all of the models
     if os.path.exists(f'../results/models/federated-{num_vehicles}-{name}'):
