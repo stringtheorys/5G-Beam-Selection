@@ -3,9 +3,8 @@ import argparse
 import tensorflow as tf
 
 from agents.centralised import centralised_training
-from agents.distributed import distributed_training
 from agents.federated import federated_training
-from communication import basestation, jetson
+from communication import basestation, vehicle
 from core.dataset import output_dataset
 from models import models
 
@@ -20,18 +19,16 @@ if __name__ == '__main__':
     print(f'Agents: {args.agent}, Model: {args.model}')
 
     if args.agent == 'basestation':
-        basestation.start(basestation.parser.parse_args())
-    elif args.agent == 'jetson':
-        jetson.start(jetson.parser.parse_args())
+        basestation.start()
+    elif args.agent == 'vehicle':
+        vehicle.start()
     else:
         model_fn, dataset_fn = models[args.model]
 
         if args.agent == 'centralised':
             centralised_training(args.model, model_fn(), *dataset_fn(), *output_dataset(), epochs=30)
-        elif args.agent == 'distributed':
-            distributed_training(args.model, model_fn(), *dataset_fn(), *output_dataset(), epochs=30)
         elif args.agent == 'federated':
-            federated_training(args.model, model_fn, int(args.vehicles), *dataset_fn(), *output_dataset())
+            federated_training(args.model, model_fn, int(args.vehicles), *dataset_fn(), *output_dataset(), epochs=30)
         elif args.agent == 'southampton':
             centralised_training(f'{args.model}-v2', model_fn(), *dataset_fn(), *output_dataset(version='v2'),
                                  loss_fn=tf.keras.losses.MeanSquaredError())
