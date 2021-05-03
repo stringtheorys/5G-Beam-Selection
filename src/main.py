@@ -10,7 +10,7 @@ from models import models
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-a', '--agent', default='centralised',
-                    choices=['centralised', 'distributed', 'federated', 'southampton', 'basestation', 'jetson'])
+                    choices=['centralised', 'distributed', 'federated', 'southampton', 'basestation', 'vehicle'])
 parser.add_argument('-m', '--model', default='imperial', choices=models.keys())
 parser.add_argument('-v', '--vehicles', default=2)
 
