@@ -97,8 +97,8 @@ def image_dataset(folder: str = '../data'):
 
 
 def coord_lidar_dataset(folder: str = '../data'):
-    return [data for data in zip(coord_dataset(folder), lidar_dataset(folder))]
+    return tuple(data for data in zip(coord_dataset(folder), lidar_dataset(folder)))
 
 
 def coord_lidar_image_dataset(folder: str = '../data'):
-    return [data for data in zip(coord_dataset(folder), lidar_dataset(folder), image_dataset(folder))]
+    return tuple(data for data in zip(coord_dataset(folder), lidar_dataset(folder), image_dataset(folder)))

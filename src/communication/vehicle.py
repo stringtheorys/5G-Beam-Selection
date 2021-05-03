@@ -34,9 +34,11 @@ def start(num_vehicles=2):
 
     training_input, _ = dataset_fn()
     training_output, _ = output_dataset()
-    sample_indexes = tf.random.uniform(256, 0, len(training_input))
-    training_input, training_output = tf.gather_nd(training_input, sample_indexes), \
-        tf.gather_nd(training_output, sample_indexes)
+
+    indexes = tf.random.uniform((512,), 0, len(training_input))
+    training_input = tf.gather(training_input, indexes) if not isinstance(training_input, tuple) else \
+        tuple(tf.gather(dataset_input, indexes) for dataset_input in training_input)
+    training_output = tf.gather(training_output, indexes)
 
     # receive new global model, update model and send back the updated model
     vehicle_results = []
