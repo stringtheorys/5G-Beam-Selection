@@ -57,8 +57,6 @@ def federated_training(name: str, model_fn: Callable[[], tf.keras.models.Model],
         for vehicle_id, (vehicle_model, training_data) in enumerate(zip(vehicle_models, vehicle_training_dataset)):
             vehicle_history = vehicle_model.fit(*training_data, batch_size=16, verbose=2,
                                                 validation_data=(validation_input, validation_output)).history
-
-            print(f'\tVehicle id: {vehicle_id} - {vehicle_history}')
             epoch_results[f'vehicle {vehicle_id}'] = {key: [list(map(int, vals))]
                                                       for key, vals in vehicle_history.items()}
 
@@ -68,7 +66,7 @@ def federated_training(name: str, model_fn: Callable[[], tf.keras.models.Model],
             global_weight.assign(sum(1 / num_vehicles * weight for weight in vehicle_weights))
 
         # Validation of the global model
-        validation_step(global_model, validation_input, validation_output)
+        validation_step(global_model, validation_input, validation_output, metrics)
         global_results = {}
         for metric in metrics:
             global_results[f'validation-{metric.name}'] = float(metric.result().numpy())

@@ -56,7 +56,7 @@ def start(model_name='imperial', num_vehicles=2, epochs=30):
                 global_weight.assign(sum(1 / num_vehicles * weight for weight in vehicle_weights))
 
             # Validation of the global model
-            validation_step(global_model, validation_input, validation_output)
+            validation_step(global_model, validation_input, validation_output, metrics)
             epoch_results = {}
             for metric in metrics:
                 epoch_results[f'validation-{metric.name}'] = float(metric.result().numpy())
