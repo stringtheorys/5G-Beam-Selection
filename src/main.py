@@ -26,11 +26,10 @@ if __name__ == '__main__':
         model_fn, dataset_fn = models[args.model]
 
         if args.agent == 'centralised':
-            centralised_training(args.model, model_fn(), *dataset_fn(), *output_dataset(), epochs=30)
+            centralised_training(args.model, model_fn(), *dataset_fn(), *output_dataset())
         elif args.agent == 'federated':
-            federated_training(args.model, model_fn, int(args.vehicles), *dataset_fn(), *output_dataset(), epochs=30)
+            federated_training(args.model, model_fn, int(args.vehicles), *dataset_fn(), *output_dataset())
         elif args.agent == 'southampton':
-            centralised_training(f'{args.model}-v2', model_fn(), *dataset_fn(), *output_dataset(version='v2'),
-                                 loss_fn=tf.keras.losses.MeanSquaredError())
+            centralised_training(f'{args.model}-v2', model_fn(), *dataset_fn(), *output_dataset(version='v2'))
         else:
             raise Exception(f'Unknown agent type: {args.agent}')

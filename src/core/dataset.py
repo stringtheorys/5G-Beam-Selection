@@ -70,10 +70,10 @@ def beam_outputs_v2(beam_filename: str):
     return (beam_matrix.T / beam_matrix.sum(axis=1)).T
 
 
-def output_dataset(folder: str = '../data', version: str = 'v1'):
+def output_dataset(folder: str = '../data', version: str = 'v1', threshold: int = 6):
     if version == 'v1':
-        return (beam_outputs(f'{folder}/beams_output_train.npz'),
-                beam_outputs(f'{folder}/beams_output_validation.npz'))
+        return (beams_log_scale(beam_outputs_v2(f'{folder}/beams_output_train.npz'), threshold),
+                beams_log_scale(beam_outputs_v2(f'{folder}/beams_output_validation.npz'), threshold))
     elif version == 'v2':
         return (beam_outputs_v2(f'{folder}/beams_output_train.npz'),
                 beam_outputs_v2(f'{folder}/beams_output_validation.npz'))

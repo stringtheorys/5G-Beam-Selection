@@ -2,7 +2,7 @@
 Training for a centralised version of the beam alignment agent
 """
 
-import datetime
+import datetime as dt
 import json
 import os
 
@@ -14,8 +14,7 @@ from core.metrics import top_k_metrics, TopKThroughputRatio
 
 def centralised_training(name: str, model: tf.keras.models.Sequential,
                          training_input: np.ndarray, validation_input: np.ndarray,
-                         training_output: np.ndarray, validation_output: np.ndarray, epochs: int = 15,
-                         loss_fn: tf.keras.losses.Loss = tf.keras.losses.CategoricalCrossentropy()):
+                         training_output: np.ndarray, validation_output: np.ndarray, epochs: int = 30):
     """
     Centralised training agent
 
@@ -26,7 +25,6 @@ def centralised_training(name: str, model: tf.keras.models.Sequential,
     :param training_output: numpy matrix for the training output
     :param validation_output: numpy matrix for the validation output
     :param epochs: number of epochs the mode.fit function will run for
-    :param loss_fn: the loss function which by default is Categorical cross entropy loss
     """
     # The accuracy and throughput metrics
     metrics = [
@@ -37,11 +35,11 @@ def centralised_training(name: str, model: tf.keras.models.Sequential,
     ]
 
     # Adds callbacks over the epochs (through this is saved in the eval.json file)
-    log_dir = f'../results/logs/{name}/{datetime.datetime.now().strftime("%Y%m%d-%H%M%S")}'
-    tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
+    log_dir = f'../results/logs/centralised-{name}/{dt.datetime.now().strftime("%Y%m%d-%H%M%S")}'
+    tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, write_graph=False, profile_batch=2)
 
     # Compile the model with the optimiser, loss and metrics
-    model.compile(optimizer=tf.keras.optimizers.Adam(), loss=loss_fn, metrics=metrics)
+    model.compile(optimizer=tf.keras.optimizers.Adam(), loss=tf.keras.losses.CategoricalCrossentropy(), metrics=metrics)
 
     # Train the model, change the epochs value for the number of training rounds
     history = model.fit(x=training_input, y=training_output, batch_size=16,  callbacks=tensorboard_callback,

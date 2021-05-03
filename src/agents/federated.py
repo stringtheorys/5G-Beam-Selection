@@ -1,3 +1,8 @@
+"""
+Implementation of federated learning for beam alignment agents
+"""
+
+import datetime as dt
 import json
 import os
 from typing import Callable
@@ -11,7 +16,7 @@ from core.training import validation_step
 
 def federated_training(name: str, model_fn: Callable[[], tf.keras.models.Model], num_vehicles: int,
                        training_input, validation_input, training_output, validation_output,
-                       epochs=15, loss_fn: tf.keras.losses.Loss = tf.keras.losses.CategoricalCrossentropy()):
+                       epochs=30, loss_fn: tf.keras.losses.Loss = tf.keras.losses.CategoricalCrossentropy()):
     """
     Custom federated training
 
@@ -49,6 +54,13 @@ def federated_training(name: str, model_fn: Callable[[], tf.keras.models.Model],
                                                      tf.split(training_output, num_vehicles))
     ]
 
+    # Adds callbacks over the epochs (through this is saved in the eval.json file)
+    log_dir = f'../results/logs/federated-{name}-{num_vehicles}/{dt.datetime.now().strftime("%Y%m%d-%H%M%S")}'
+    vehicle_tensorboard_callback = [
+        tf.keras.callbacks.TensorBoard(log_dir=f'{log_dir}/vehicle-{vehicle_id}', write_graph=False, profile_batch=2)
+        for vehicle_id in range(num_vehicles)
+    ]
+
     # Save the metric history over training steps
     history = []
     for epochs in tqdm(range(epochs)):
@@ -56,7 +68,8 @@ def federated_training(name: str, model_fn: Callable[[], tf.keras.models.Model],
         epoch_results = {}
         for vehicle_id, (vehicle_model, training_data) in enumerate(zip(vehicle_models, vehicle_training_dataset)):
             vehicle_history = vehicle_model.fit(*training_data, batch_size=16, verbose=2,
-                                                validation_data=(validation_input, validation_output)).history
+                                                validation_data=(validation_input, validation_output),
+                                                callbacks=vehicle_tensorboard_callback[vehicle_id]).history
             epoch_results[f'vehicle {vehicle_id}'] = {key: [list(map(int, vals))]
                                                       for key, vals in vehicle_history.items()}
 

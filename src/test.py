@@ -1,8 +1,8 @@
-
 import matplotlib.pyplot as plt
 import numpy as np
+import tensorflow as tf
 
-from core.dataset import beam_outputs, beams_log_scale, output_dataset, beam_outputs_v2
+from core.dataset import beam_outputs, beams_log_scale, output_dataset
 from models import models
 
 
@@ -31,7 +31,7 @@ def test_beam_output():
     axs[1, 0].set_title('Max Sum Normalised output')
 
     # Using the flattened with the beam log scaling function
-    axs[1, 1].plot(np.arange(256), beams_log_scale(np.array([true_output / np.sum(true_output)]), 6)[0])
+    axs[1, 1].plot(np.arange(256), beams_log_scale(np.array([true_output / np.sum(true_output)]), 6)[pos])
     axs[1, 1].set_title('Log scale of normalised')
 
     # Compare these beam outputs to the imperial get beam outputs function
@@ -54,14 +54,13 @@ def test_models():
 
 def test_beam_output_v2():
     model_fn, dataset_fn = models['imperial']
-    model = model_fn()
-    model.load_weights('../results/models/centralised-imperial-v2/model')
+    model = tf.keras.models.load_model('../results/models/centralised-imperial-v2/model')
     _, validation_input = dataset_fn()
     _, validation_output = output_dataset(version='v2')
 
     fig, axs = plt.subplots(3, 3, figsize=(10, 10))
     for ax in axs.flatten():
-        pos = np.random.randint(0, len(validation_input)-1)
+        pos = np.random.randint(0, len(validation_input) - 1)
         ax.set_title(f'Pos: {pos}')
         ax.plot(np.arange(256), validation_output[pos], label='True')
         # ax.plot(np.arange(256), model(np.array([validation_input[pos]]))[0], label='Predicted')
@@ -70,5 +69,5 @@ def test_beam_output_v2():
 
 
 if __name__ == '__main__':
-    # test_beam_output()
-    test_beam_output_v2()
+    test_beam_output()
+    # test_beam_output_v2()
