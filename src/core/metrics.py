@@ -50,3 +50,10 @@ class TopKThroughputRatio(MeanMetricWrapper):
         return tf.divide(tf.reduce_max(tf.gather(y_true, tf.argsort(y_pred, direction='DESCENDING')[:, :k],
                                                  axis=1, batch_dims=1), axis=1), tf.reduce_max(y_true, axis=1))
 
+    def get_config(self):
+        return {'k': self._fn_kwargs['k'], 'name': self.name}
+
+    @classmethod
+    def from_config(cls, config):
+        print(config)
+        return cls(**config)

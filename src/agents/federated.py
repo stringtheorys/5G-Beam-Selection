@@ -8,7 +8,7 @@ import os
 from typing import Callable
 
 import tensorflow as tf
-from tqdm import tqdm
+import numpy as np
 
 from core.metrics import TopKThroughputRatio, top_k_metrics
 from core.training import validation_step
@@ -49,21 +49,19 @@ def federated_training(name: str, model_fn: Callable[[], tf.keras.models.Model],
         vehicle_model.compile(optimizer=tf.keras.optimizers.Adam(), loss=loss_fn, metrics=metrics)
 
     # Determine the training datasets
-    vehicle_training_dataset = [
-        (inputs, outputs) for inputs, outputs in zip(tf.split(training_input, num_vehicles),
-                                                     tf.split(training_output, num_vehicles))
-    ]
+    vehicle_training_dataset = list(zip(np.array_split(training_input, num_vehicles),
+                                        np.array_split(training_output, num_vehicles)))
 
     # Adds callbacks over the epochs (through this is saved in the eval.json file)
     log_dir = f'../results/logs/federated-{name}-{num_vehicles}/{dt.datetime.now().strftime("%Y%m%d-%H%M%S")}'
     vehicle_tensorboard_callback = [
-        tf.keras.callbacks.TensorBoard(log_dir=f'{log_dir}/vehicle-{vehicle_id}', write_graph=False, profile_batch=2)
+        tf.keras.callbacks.TensorBoard(log_dir=f'{log_dir}/vehicle-{vehicle_id}', write_graph=False)
         for vehicle_id in range(num_vehicles)
     ]
 
     # Save the metric history over training steps
     history = []
-    for epochs in tqdm(range(epochs)):
+    for epochs in range(epochs):
         print(f'Epochs: {epochs}')
         epoch_results = {}
         for vehicle_id, (vehicle_model, training_data) in enumerate(zip(vehicle_models, vehicle_training_dataset)):
@@ -76,7 +74,7 @@ def federated_training(name: str, model_fn: Callable[[], tf.keras.models.Model],
         # Add the each of the vehicle results to the global model
         vehicle_variables = [model.trainable_variables for model in vehicle_models]
         for global_weight, *vehicle_weights in zip(global_model.trainable_variables, *vehicle_variables):
-            global_weight.assign(sum(1 / num_vehicles * weight for weight in vehicle_weights))
+            global_weight.assign(sum(weight for weight in vehicle_weights) / num_vehicles)
 
         # Validation of the global model
         validation_step(global_model, validation_input, validation_output, metrics)
