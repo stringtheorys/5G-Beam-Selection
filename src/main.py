@@ -1,12 +1,13 @@
 import argparse
-
-import tensorflow as tf
+import os
 
 from agents.centralised import centralised_training
 from agents.federated import federated_training
 from communication import basestation, vehicle
 from core.dataset import output_dataset
 from models import models
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-a', '--agent', default='centralised',

@@ -1,3 +1,7 @@
+"""
+Implementation of a 5G vehicle
+"""
+
 import json
 import os
 import pickle

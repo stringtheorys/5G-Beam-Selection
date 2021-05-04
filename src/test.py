@@ -1,9 +1,13 @@
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 
 from core.dataset import beam_outputs, beams_log_scale, output_dataset
 from models import models
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
 def test_beam_output():
@@ -63,7 +67,7 @@ def test_beam_output_v2():
         pos = np.random.randint(0, len(validation_input) - 1)
         ax.set_title(f'Pos: {pos}')
         ax.plot(np.arange(256), validation_output[pos], label='True')
-        # ax.plot(np.arange(256), model(np.array([validation_input[pos]]))[0], label='Predicted')
+        ax.plot(np.arange(256), model(np.array([validation_input[pos]]))[0], label='Predicted')
     axs[0, 0].legend()
     plt.show()
 

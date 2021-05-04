@@ -55,5 +55,4 @@ class TopKThroughputRatio(MeanMetricWrapper):
 
     @classmethod
     def from_config(cls, config):
-        print(config)
         return cls(**config)

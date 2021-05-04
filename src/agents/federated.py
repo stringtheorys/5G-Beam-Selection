@@ -7,8 +7,8 @@ import json
 import os
 from typing import Callable
 
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
 
 from core.metrics import TopKThroughputRatio, top_k_metrics
 from core.training import validation_step
