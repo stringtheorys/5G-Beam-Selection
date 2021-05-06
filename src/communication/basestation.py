@@ -52,7 +52,7 @@ def start(model_name='imperial', num_vehicles=2, epochs=30):
             vehicle_variables = []
             for pos, vehicle_socket in enumerate(vehicle_sockets):
                 print(f'\tVehicle training: {pos}')
-                vehicle_socket.send(pickle.dumps(global_model.get_weights()))
+                vehicle_socket.send(pickle.dumps(global_model.trainable_variables()))
                 vehicle_variables.append(pickle.loads(vehicle_socket.recv(model_recv_size)))
 
             # Update the global model with the local vehicle models

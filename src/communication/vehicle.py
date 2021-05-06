@@ -51,10 +51,10 @@ def start(num_vehicles=2):
         if not received_data:
             break
 
-        local_model.set_weights(pickle.loads(received_data))
+        local_model.trainable_variables = pickle.loads(received_data)
         vehicle_history = local_model.fit(training_input, training_output, batch_size=16, verbose=2).history
         vehicle_results.append({key: [list(map(int, vals))] for key, vals in vehicle_history.items()})
-        vehicle_socket.send(pickle.dumps(local_model))
+        vehicle_socket.send(pickle.dumps(local_model.trainable_variables))
 
     vehicle_num = len([filename for filename in os.listdir('../results/eval/')
                        if f'federated-{num_vehicles}-{model_name}' in filename])
