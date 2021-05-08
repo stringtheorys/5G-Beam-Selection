@@ -14,5 +14,6 @@ module load cuda/11.0
 echo $PWD
 cd ~/5G-Beam-Selection/src/
 
-python main.py --agent southampton --model imperial
-python main.py --agent southampton --model southampton
+python main.py --agent centralised-v2 --model imperial
+python main.py --agent centralised-v2 --model beamsoup-coord
+python main.py --agent centralised-v2 --model southampton
