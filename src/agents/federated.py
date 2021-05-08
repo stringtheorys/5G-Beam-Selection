@@ -49,7 +49,7 @@ def federated_training(name: str, model_fn: Callable[[], tf.keras.models.Model],
         vehicle_model.compile(optimizer=tf.keras.optimizers.Adam(), loss=loss_fn, metrics=metrics)
 
     # Determine the training datasets
-    vehicle_training_dataset = list(zip(np.array_split(training_input, num_vehicles),
+    vehicle_training_dataset = list(zip(tuple(np.array_split(inputs, num_vehicles) for inputs in training_input),
                                         np.array_split(training_output, num_vehicles)))
 
     # Adds callbacks over the epochs (through this is saved in the eval.json file)
