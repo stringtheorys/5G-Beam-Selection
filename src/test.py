@@ -1,10 +1,13 @@
 import os
+import tempfile
+import zipfile
 
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 
 from core.dataset import beam_outputs, beams_log_scale, output_dataset
+from core.pruning import prune_model
 from models import models
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -70,6 +73,29 @@ def test_beam_output_v2():
         ax.plot(np.arange(256), model(np.array([validation_input[pos]]))[0], label='Predicted')
     axs[0, 0].legend()
     plt.show()
+
+
+def gzip_model(test_model):
+    _, new_pruned_keras_file = tempfile.mkstemp(".h5")
+    print("Saving pruned model to: ", new_pruned_keras_file)
+    tf.keras.models.save_model(test_model, new_pruned_keras_file, include_optimizer=False)
+
+    # Zip the .h5 model file
+    _, zip3 = tempfile.mkstemp(".zip")
+    with zipfile.ZipFile(zip3, "w", compression=zipfile.ZIP_DEFLATED) as f:
+        f.write(new_pruned_keras_file)
+    print(f"Size of model before compression: {os.path.getsize(new_pruned_keras_file) / float(2 ** 20):.5f} Mb")
+    print(f"Size of model after compression: {os.path.getsize(zip3) / float(2 ** 20):.5f} Mb")
+
+
+def test_pruning(input_shape=(20,)):
+    model = tf.keras.Sequential([
+        tf.keras.layers.Dense(20, input_shape=input_shape),
+        tf.keras.layers.Flatten()
+    ])
+
+    pruned = prune_model(model, 0.8)
+    gzip_model(pruned)
 
 
 if __name__ == '__main__':
