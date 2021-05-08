@@ -51,7 +51,10 @@ def start(num_vehicles=2):
         if not received_data:
             break
 
-        local_model.trainable_variables = pickle.loads(received_data)
+        updated_trainable_variables = pickle.loads(received_data)
+        for local_var, updated_var in zip(local_model.trainable_variables, updated_trainable_variables):
+            local_var.assign(updated_var)
+
         vehicle_history = local_model.fit(training_input, training_output, batch_size=16, verbose=2).history
         vehicle_results.append({key: [list(map(int, vals))] for key, vals in vehicle_history.items()})
         vehicle_socket.send(pickle.dumps(local_model.trainable_variables))
