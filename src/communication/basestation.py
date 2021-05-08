@@ -14,9 +14,9 @@ from core.training import validation_step
 from models import models
 
 
-def start(model_name='imperial', num_vehicles=2, epochs=30):
+def start(model_name='imperial', num_vehicles=1, epochs=30):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as basestation_socket:
-        basestation_socket.bind(('127.0.0.1', 12354))
+        basestation_socket.bind(('169.254.75.107', 1900))
 
         basestation_socket.listen(num_vehicles)
         vehicle_sockets = []

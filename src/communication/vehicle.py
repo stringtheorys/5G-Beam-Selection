@@ -14,10 +14,10 @@ from core.metrics import TopKThroughputRatio
 from models import models
 
 
-def start(num_vehicles=2):
+def start(num_vehicles=1):
     vehicle_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     print('Trying to connect to the basestation')
-    vehicle_socket.connect(('127.0.0.1', 12354))
+    vehicle_socket.connect(('169.254.75.107', 1900))
 
     print('Successful connect; now waiting for model name')
     model_name = vehicle_socket.recv(255).decode('utf8')
@@ -39,7 +39,7 @@ def start(num_vehicles=2):
     training_input, _ = dataset_fn()
     training_output, _ = output_dataset()
 
-    indexes = tf.random.uniform((512,), 0, len(training_input))
+    indexes = tf.random.uniform((512,), 0, len(training_input),dtype=tf.dtypes.int32)
     training_input = tf.gather(training_input, indexes) if not isinstance(training_input, tuple) else \
         tuple(tf.gather(dataset_input, indexes) for dataset_input in training_input)
     training_output = tf.gather(training_output, indexes)
