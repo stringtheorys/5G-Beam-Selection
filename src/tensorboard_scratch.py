@@ -26,6 +26,7 @@ def tensorboard_to_csv():
                         metrics = event_acc.Tags()['scalars']
                         for metric in metrics:
                             data = event_acc.Scalars(metric)
+                            metric = metric.replace('epoch_', '')
                             for event in data:
                                 writer.writerow({'model-name': f'{model_name}-{vehicle}', 'setting': setting,
                                                  'metric': metric, 'step': event.step, 'value': event.value})
