@@ -44,7 +44,7 @@ def federated_training(name: str, model_fn: Callable[[], tf.keras.models.Model],
     ]
 
     # Compile the models
-    global_model.compile(optimizer=tf.keras.optimizers.Adam())
+    global_model.compile(optimizer=tf.keras.optimizers.Adam(), loss=loss_fn, metrics=metrics)
     for vehicle_model in vehicle_models:
         vehicle_model.compile(optimizer=tf.keras.optimizers.Adam(), loss=loss_fn, metrics=metrics)
 
@@ -54,6 +54,7 @@ def federated_training(name: str, model_fn: Callable[[], tf.keras.models.Model],
 
     # Adds callbacks over the epochs (through this is saved in the eval.json file)
     log_dir = f'../results/logs/federated-{name}-{num_vehicles}/{dt.datetime.now().strftime("%Y%m%d-%H%M%S")}'
+    global_tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=f'{log_dir}/global', write_graph=True)
     vehicle_tensorboard_callback = [
         tf.keras.callbacks.TensorBoard(log_dir=f'{log_dir}/vehicle-{vehicle_id}', write_graph=False)
         for vehicle_id in range(num_vehicles)
@@ -77,12 +78,9 @@ def federated_training(name: str, model_fn: Callable[[], tf.keras.models.Model],
             global_weight.assign(sum(weight for weight in vehicle_weights) / num_vehicles)
 
         # Validation of the global model
-        validation_step(global_model, validation_input, validation_output, metrics)
-        global_results = {}
-        for metric in metrics:
-            global_results[f'validation-{metric.name}'] = float(metric.result().numpy())
-            metric.reset_states()
-        epoch_results['global'] = global_results
+        global_evaluation = global_model.evaluate(validation_input, validation_output, verbose=2,
+                                                  callbacks=[global_tensorboard_callback])
+        epoch_results['global'] = dict(zip(['loss'] + [m.name for m in metrics], global_evaluation))
 
         # Add the epoch results to the history
         history.append(epoch_results)
