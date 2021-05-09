@@ -2,7 +2,6 @@
 Training for a centralised version of the beam alignment agent
 """
 
-import datetime as dt
 import json
 import os
 
@@ -34,16 +33,12 @@ def centralised_training(name: str, model: tf.keras.models.Sequential,
         TopKThroughputRatio(k=10, name='top-10-throughput')
     ]
 
-    # Adds callbacks over the epochs (through this is saved in the eval.json file)
-    log_dir = f'../results/logs/centralised-{name}/{dt.datetime.now().strftime("%Y%m%d-%H%M%S")}'
-    tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, write_graph=False, profile_batch=2)
-
     # Compile the model with the optimiser, loss and metrics
     model.compile(optimizer=tf.keras.optimizers.Adam(), loss=tf.keras.losses.CategoricalCrossentropy(), metrics=metrics)
 
     # Train the model, change the epochs value for the number of training rounds
-    history = model.fit(x=training_input, y=training_output, batch_size=16, callbacks=tensorboard_callback,
-                        validation_data=(validation_input, validation_output), epochs=epochs, verbose=2)
+    history = model.fit(x=training_input, y=training_output, batch_size=16, epochs=epochs, verbose=2,
+                        validation_data=(validation_input, validation_output))
 
     # Save the model
     if os.path.exists(f'../results/models/centralised-{name}'):
@@ -55,4 +50,4 @@ def centralised_training(name: str, model: tf.keras.models.Sequential,
     top_k_accuracy, top_k_throughput_ratio = top_k_metrics(model, validation_input, validation_output)
     with open(f'../results/eval/centralised-{name}.json', 'w') as file:
         json.dump({'top-k-accuracy': top_k_accuracy, 'top-k-throughput-ratio': top_k_throughput_ratio,
-                   'history': {key: [list(map(int, values))] for key, values in history.history.items()}}, file)
+                   'history': {key: list(map(float, values)) for key, values in history.history.items()}}, file)
