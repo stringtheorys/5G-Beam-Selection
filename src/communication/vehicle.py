@@ -17,7 +17,7 @@ from models import models
 def start(num_vehicles=1):
     vehicle_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     print('Trying to connect to the basestation')
-    vehicle_socket.connect(('169.254.75.107', 1900))
+    vehicle_socket.connect(('169.254.176.117', 137))
 
     print('Successful connect; now waiting for model name')
     model_name = vehicle_socket.recv(255).decode('utf8')
@@ -47,10 +47,23 @@ def start(num_vehicles=1):
     # receive new global model, update model and send back the updated model
     vehicle_results = []
     while True:
-        received_data = vehicle_socket.recv(model_recv_size)
+        msg = 'stop'.encode('utf8')
+        received_data = b''
+        size = 34427
+        to_receive = size
+        while to_receive > 0:
+            received_data += vehicle_socket.recv(size)
+            if not received_data:
+                break
+            if received_data == msg:
+                break
+            rec_size = len(received_data)
+            print('received size:', rec_size)
+            to_receive = size - rec_size
         if not received_data:
             break
-
+        if received_data == msg:
+            break
         updated_trainable_variables = pickle.loads(received_data)
         for local_var, updated_var in zip(local_model.trainable_variables, updated_trainable_variables):
             local_var.assign(updated_var)
@@ -58,6 +71,7 @@ def start(num_vehicles=1):
         vehicle_history = local_model.fit(training_input, training_output, batch_size=16, verbose=2).history
         vehicle_results.append({key: [list(map(int, vals))] for key, vals in vehicle_history.items()})
         vehicle_socket.send(pickle.dumps(local_model.trainable_variables))
+        print('sent size:', len(pickle.dumps(local_model.trainable_variables)))
 
     vehicle_num = len([filename for filename in os.listdir('../results/eval/')
                        if f'federated-{num_vehicles}-{model_name}' in filename])

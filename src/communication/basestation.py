@@ -14,9 +14,9 @@ from core.training import validation_step
 from models import models
 
 
-def start(model_name='imperial', num_vehicles=1, epochs=30):
+def start(model_name='imperial', num_vehicles=1, epochs=20):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as basestation_socket:
-        basestation_socket.bind(('169.254.75.107', 1900))
+        basestation_socket.bind(('169.254.176.117', 137))
 
         basestation_socket.listen(num_vehicles)
         vehicle_sockets = []
@@ -53,8 +53,11 @@ def start(model_name='imperial', num_vehicles=1, epochs=30):
             for pos, vehicle_socket in enumerate(vehicle_sockets):
                 print(f'\tVehicle training: {pos}')
                 vehicle_socket.send(pickle.dumps(global_model.trainable_variables))
-                vehicle_variables.append(pickle.loads(vehicle_socket.recv(model_recv_size)))
-
+                print('sent_w_size:', len(pickle.dumps(global_model.trainable_variables)))
+                received_weights = vehicle_socket.recv(34429)
+                print('rec_w_size:', len(received_weights))
+                updated_vehicle_variables = pickle.loads(received_weights)
+                vehicle_variables.append(updated_vehicle_variables)
             # Update the global model with the local vehicle models
             for global_weight, *vehicle_weights in zip(global_model.trainable_variables, *vehicle_variables):
                 global_weight.assign(sum(1 / num_vehicles * weight for weight in vehicle_weights))
@@ -70,8 +73,8 @@ def start(model_name='imperial', num_vehicles=1, epochs=30):
 
         # Send an empty string to the vehicle to inform them it has ended
         for vehicle_socket in vehicle_sockets:
-            vehicle_socket.send(''.encode('utf8'))
-            vehicle_socket.recv(256)
+            vehicle_socket.send('stop'.encode('utf8'))
+            vehicle_socket.recv(256).decode('utf8')
             vehicle_socket.close()
 
         # Save the global model
