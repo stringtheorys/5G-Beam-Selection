@@ -5,7 +5,10 @@ Implementation of a 5G basestation
 import json
 import pickle
 import socket
+import time
 
+import matplotlib.pyplot as plt
+import numpy as np
 import tensorflow as tf
 
 from core.dataset import output_dataset
@@ -14,7 +17,7 @@ from core.training import validation_step
 from models import models
 
 
-def start(model_name='imperial', num_vehicles=1, epochs=20):
+def start(model_name='imperial', num_vehicles=1, epochs=20, model_dtype=np.float32):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as basestation_socket:
         basestation_socket.bind(('169.254.176.117', 137))
 
@@ -35,6 +38,15 @@ def start(model_name='imperial', num_vehicles=1, epochs=20):
             TopKThroughputRatio(k=1, name='top-1-throughput'),
             TopKThroughputRatio(k=10, name='top-10-throughput')
         ]
+
+        plt.ion()
+        fig, axs = plt.subplots(2, 2, figsize=(14, 7))
+        for ax, metric in zip(axs.flatten(), metrics):
+            ax.set_title(metric.name)
+            ax.set_xlim(.5, epochs + .5)
+            ax.set_xlabel('Epoch')
+        plt.tight_layout()
+        plt.show()
 
         print('Listening for connections')
         for _ in range(num_vehicles):
@@ -71,6 +83,15 @@ def start(model_name='imperial', num_vehicles=1, epochs=20):
             global_results.append(epoch_results)
             print(f'Global model results: {epoch_results}')
 
+            # Plots the results
+            for ax, metric in zip(axs.flatten(), metrics):
+                ax.plot(np.arange(epoch + 1) + 1, [result[f'validation-{metric.name}'] for result in global_results],
+                        label='validation' if epoch == 0 else '', color='orange')
+                ax.legend()
+
+            plt.draw()
+            plt.pause(0.01)
+
         # Send an empty string to the vehicle to inform them it has ended
         for vehicle_socket in vehicle_sockets:
             vehicle_socket.send('stop'.encode('utf8'))
@@ -85,3 +106,5 @@ def start(model_name='imperial', num_vehicles=1, epochs=20):
         with open(f'../results/eval/federated-{num_vehicles}-{model_name}.json', 'w') as file:
             json.dump({'top-k-accuracy': top_k_accuracy, 'top-k-throughput-ratio': top_k_throughput_ratio,
                        'history': global_results}, file)
+
+        time.sleep(5)
