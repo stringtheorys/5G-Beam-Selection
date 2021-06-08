@@ -58,6 +58,10 @@ def federated_training(name: str, model_fn: Callable[[], tf.keras.models.Model],
                for model_name in ['global'] + [f'vehicle {pos}' for pos in range(num_vehicles)]}
     for epochs in range(epochs):
         print(f'Epochs: {epochs}')
+        # Update all of the vehicle models to copy the global model
+        [model.set_weights(global_model.get_weights()) for model in vehicle_models]
+
+        # Train each vehicle model
         for vehicle_num, (vehicle_model, training_data) in enumerate(zip(vehicle_models, vehicle_training_dataset)):
             vehicle_train_eval = vehicle_model.fit(*training_data, batch_size=16, verbose=2,
                                                    validation_data=(validation_input, validation_output)).history
@@ -68,9 +72,6 @@ def federated_training(name: str, model_fn: Callable[[], tf.keras.models.Model],
         vehicle_variables = [model.trainable_variables for model in vehicle_models]
         for global_weight, *vehicle_weights in zip(global_model.trainable_variables, *vehicle_variables):
             global_weight.assign(sum(weight for weight in vehicle_weights) / num_vehicles)
-
-        # Update all of the vehicle models to copy the global model
-        [model.set_weights(global_model.get_weights()) for model in vehicle_models]
 
         # Validation of the global model
         global_eval = global_model.evaluate(validation_input, validation_output, verbose=2, return_dict=True)
